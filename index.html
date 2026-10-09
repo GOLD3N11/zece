@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Zece — note, medii, ținte</title>
+    <meta name="description" content="Zece: caietul tău de note. Medii, ținte, teste și orar, într-un singur loc.">
+    <meta name="application-name" content="Zece">
+    <meta name="apple-mobile-web-app-title" content="Zece">
+    <meta name="theme-color" content="#FBFCFE" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1E2A25" media="(prefers-color-scheme: dark)">
+    <!-- Iconița: un 10 scris de mână, încercuit cu roșu (are și variantă pentru tema întunecată) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Cstyle%3E%0A.tile%7Bfill:%23FBFCFE;stroke:%23D5DBE5%7D.grid%7Bstroke:%23DCE3EE%7D.ink%7Bstroke:%232347C5%7D.red%7Bstroke:%23D3302A%7D%0A%40media %28prefers-color-scheme:dark%29%7B.tile%7Bfill:%231E2A25;stroke:%2333443C%7D.grid%7Bstroke:%232A3A33%7D.ink%7Bstroke:%23EEF1EA%7D.red%7Bstroke:%23FF8A80%7D%7D%0A%3C/style%3E%3Crect class=%22tile%22 x=%222%22 y=%222%22 width=%2260%22 height=%2260%22 rx=%2215%22 stroke-width=%222%22/%3E%3Cpath class=%22grid%22 d=%22M2 22H62M2 42H62M22 2V62M42 2V62%22 stroke-width=%221.2%22/%3E%3Cg fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath class=%22ink%22 d=%22M17.5 24.5 24.5 18.5V45.5%22 stroke-width=%225.8%22/%3E%3Cellipse class=%22ink%22 cx=%2239.5%22 cy=%2232%22 rx=%227.6%22 ry=%2212.6%22 transform=%22rotate%2810 39.5 32%29%22 stroke-width=%225.8%22/%3E%3Cpath class=%22red%22 d=%22M47.5 11.5C59 17 60.5 41 44 50.5 31 57.5 12.5 54 8.5 41 5 29.5 12 16.5 26 12.5 34 10.3 41.5 10.7 46.8 13.4%22 stroke-width=%224%22/%3E%3C/g%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/png;base64,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">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Recursive: drept pentru interfață, „de mână” (axa CASL) pentru note și cifre mari -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,CRSV@-15..0,300..900,0..1,0..1&display=swap">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
+    <script src="script.js" defer></script>
+</head>
+<body>
+    <!-- Iconițe (linie simplă, 24×24, culoarea textului). Folosire: <svg class="ico"><use href="#i-nume"/></svg> -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+        <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
+        <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 016.5 3H19v15H6.5A1.5 1.5 0 005 19.5z"/><path d="M5 19.5A1.5 1.5 0 006.5 21H19"/><path d="M9 7h6"/></symbol>
+        <symbol id="i-notebook" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7.5h6M9 11.5h6M9 15.5h3.5"/><path d="M3 7h2M3 12h2M3 17h2"/></symbol>
+        <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+        <symbol id="i-calendar-days" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01" stroke-width="2.6"/></symbol>
+        <symbol id="i-calendar-check" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M9 15l2 2 4-4"/></symbol>
+        <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+        <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20.5a2 2 0 004 0"/></symbol>
+        <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20v-7M11 20V5M16 20v-10M20 20v-4"/></symbol>
+        <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+        <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0115 0"/></symbol>
+        <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19z"/><path d="M14 7l3 3"/></symbol>
+        <symbol id="i-note" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8z"/><path d="M14 3v5h5"/><path d="M9 17l.6-2.4 4.6-4.6 1.8 1.8-4.6 4.6z"/></symbol>
+        <symbol id="i-trend-up" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+        <symbol id="i-trend-down" viewBox="0 0 24 24"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></symbol>
+        <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></symbol>
+        <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 01-8 0z"/><path d="M8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4"/><path d="M12 13v4M8.5 21h7M10 17h4v4h-4z"/></symbol>
+        <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></symbol>
+        <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 10-2.4 5.7"/><path d="M20 4v7h-7"/></symbol>
+        <symbol id="i-printer" viewBox="0 0 24 24"><path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/></symbol>
+        <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0012 3z"/></symbol>
+        <symbol id="i-arrows-v" viewBox="0 0 24 24"><path d="M8 4v16M5 7l3-3 3 3M16 20V4M13 17l3 3 3-3"/></symbol>
+        <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></symbol>
+        <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11 3l1.8 5.2L18 10l-5.2 1.8L11 17l-1.8-5.2L4 10l5.2-1.8z"/><path d="M18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
+        <symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 3v18M6 21h12M4 7h16"/><path d="M7 7l-3 7a3 3 0 006 0zM17 7l-3 7a3 3 0 006 0z"/></symbol>
+        <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5.5 9.8A1.5 1.5 0 005.8 21h12.4a1.5 1.5 0 001.3-2.2L14 9V3"/><path d="M7.5 15h9"/></symbol>
+        <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+        <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M6 3h12M6 21h12"/><path d="M7 3v3l5 6-5 6v3M17 3v3l-5 6 5 6v3"/></symbol>
+        <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5"/><path d="M3 17l9 5 9-5"/></symbol>
+        <symbol id="i-shapes" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><circle cx="17" cy="7" r="3.5"/><path d="M13.5 20.5l3.5-6 3.5 6z"/><path d="M4 20.5l3-5 3 5z"/></symbol>
+        <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 100 18c1.2 0 1.6-1 1.2-1.9-.4-.9.2-1.9 1.2-1.9H17a4 4 0 004-4C21 7.6 17 3 12 3z"/><path d="M7.5 11.5h.01M9.5 7.5h.01M14.5 7.5h.01" stroke-width="2.6"/></symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 119.5 4a6.8 6.8 0 0010.5 10.5z"/></symbol>
+        <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+        <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4"/></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4"/></symbol>
+        <symbol id="i-logo" viewBox="0 0 64 64">
+            <rect x="2" y="2" width="60" height="60" rx="15" stroke-width="2" style="fill: var(--logo-tile); stroke: var(--logo-edge)"/>
+            <path d="M2 22H62M2 42H62M22 2V62M42 2V62" stroke-width="1.2" style="stroke: var(--logo-grid)"/>
+            <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.5 24.5 24.5 18.5V45.5" stroke-width="5.8" style="stroke: var(--logo-ink)"/>
+                <ellipse cx="39.5" cy="32" rx="7.6" ry="12.6" transform="rotate(10 39.5 32)" stroke-width="5.8" style="stroke: var(--logo-ink)"/>
+                <path d="M47.5 11.5C59 17 60.5 41 44 50.5 31 57.5 12.5 54 8.5 41 5 29.5 12 16.5 26 12.5 34 10.3 41.5 10.7 46.8 13.4" stroke-width="4" style="stroke: var(--logo-red)"/>
+            </g>
+        </symbol>
+        <symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"/></symbol>
+        <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+        <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></symbol>
+        <symbol id="i-medal" viewBox="0 0 24 24"><path d="M8 3h8l-2.5 6h-3z"/><path d="M7.5 3L10 9M16.5 3L14 9"/><circle cx="12" cy="15" r="6"/><path d="M12 12.5l.8 1.6 1.7.2-1.2 1.2.3 1.7-1.6-.8-1.6.8.3-1.7-1.2-1.2 1.7-.2z"/></symbol>
+        <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3"/><path d="M6 7l1 14h10l1-14"/><path d="M10 11v6M14 11v6"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+        <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 9.5"/></symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9.5 16h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></symbol>
+        <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 018 0V11"/></symbol>
+        <symbol id="i-graduation" viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2.2 9 2.2 12 0v-5M22 9v6"/></symbol>
+        <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></symbol>
+        <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.8-6.5-11.5a6.5 6.5 0 0113 0C18.5 15.2 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.2"/></symbol>
+        <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c.8 3.2 5 5.2 5 10a5 5 0 01-10 0c0-2.4 1.3-3.9 2.4-5 .3 1.6 1 2.6 2 3.1.6-3.1-1.4-5.6.6-8.1z"/></symbol>
+        <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.6 14L7 21l5-2.8 5 2.8-1.6-7"/></symbol>
+        <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M9 15l-3-3c1.6-4.4 5.2-9 13-9 0 7.8-4.6 11.4-9 13z"/><path d="M6 12l-3 .5 2-3.5h4M12 18l-.5 3 3.5-2v-4"/><circle cx="15" cy="9" r="1.6"/></symbol>
+        <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.6 8.2-8 9-4.4-.8-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 00-2-2H5a2 2 0 00-2 2v9a2 2 0 002 2h3"/></symbol>
+        <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M7 21h13"/><path d="M3.9 15.1l9.2-9.2a2 2 0 012.8 0l3.2 3.2a2 2 0 010 2.8L12 19H7.8z"/><path d="M9 10l5 5"/></symbol>
+        <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+        <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+        <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 014-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 01-4 4H4"/></symbol>
+    </svg>
+    <script>
+        // Aplică tema salvată înainte de prima afișare (evită „flash”-ul alb în dark mode).
+        try {
+            var s = JSON.parse(localStorage.getItem("pro_settings_db_v4") || "{}").appearance || {};
+            if (s.theme === "dark" || ((!s.theme || s.theme === "system") && matchMedia("(prefers-color-scheme: dark)").matches)) {
+                document.body.classList.add("dark-mode");
+                document.documentElement.classList.add("theme-dark");
+            }
+            var dark = document.body.classList.contains("dark-mode");
+            var accents = { blue: ["#2347C5", "#8DB4FF"], violet: ["#6D3FC6", "#C3A6FF"], green: ["#18794E", "#8FDCAF"], orange: ["#C2410C", "#FFB27A"] };
+            var ink = accents[s.accent] || accents.blue;
+            document.documentElement.style.setProperty("--accent-color", ink[dark ? 1 : 0]);
+        } catch (e) {}
+    </script>
+
+    <div id="custom-cursor" aria-hidden="true"></div>
+    <div id="custom-cursor-dot" aria-hidden="true"></div>
+
+
+    <!-- Meniul lateral (ecrane mari): ca marginea unui caiet -->
+    <aside class="sidebar" aria-label="Meniu">
+        <div class="side-brand">
+            <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-logo"/></svg>
+            <span class="side-brand-text"><b class="brand-name">Zece</b><small>caietul tău de note</small></span>
+        </div>
+        <nav class="side-nav" aria-label="Navigație principală">
+            <button type="button" class="tab-btn side-link active" data-action="nav" data-tab="tab-dashboard" aria-current="page"><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg><span>Azi</span></button>
+            <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-catalog"><svg class="ico" aria-hidden="true"><use href="#i-notebook"/></svg><span>Catalog</span></button>
+            <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-calendar"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg><span>Calendar</span></button>
+            <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-statistici"><svg class="ico" aria-hidden="true"><use href="#i-chart"/></svg><span>Statistici</span></button>
+            <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-simulator"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span>Simulator</span></button>
+        </nav>
+        <div class="side-foot">
+            <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-setari"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg><span>Setări</span></button>
+        </div>
+    </aside>
+
+    <!-- Bara de sus: căutare + comenzi, adaugă, notificări -->
+    <div class="app-bar" id="app-bar" role="banner">
+        <div class="app-bar-inner topbar">
+            <div class="topbar-brand">
+                <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-logo"/></svg>
+                <b class="brand-name">Zece</b>
+            </div>
+            <button type="button" class="cmdk-trigger" data-action="cmdk" aria-label="Caută sau dă o comandă (Ctrl K)">
+                <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="cmdk-trigger-text">Caută materii, note, teste sau comenzi…</span><kbd class="cmdk-kbd">Ctrl K</kbd>
+            </button>
+            <div class="topbar-actions">
+                <button type="button" class="btn btn-primary quick-add-btn" id="quick-add-btn" data-action="quick-add" aria-haspopup="menu" aria-expanded="false" aria-controls="quick-add">
+                    <svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span>Adaugă</span>
+                </button>
+                <button type="button" id="notif-btn" class="btn btn-glass icon-btn notification-btn" data-action="notif-open" aria-haspopup="dialog" aria-label="Notificări">
+                    <svg class="ico" aria-hidden="true"><use href="#i-bell"/></svg><span id="notif-badge" class="badge-count" hidden>0</span>
+                </button>
+                <button type="button" class="btn btn-glass icon-btn topbar-settings" id="more-btn" data-action="more-open" aria-label="Mai mult: Simulator, Setări" aria-haspopup="menu" aria-expanded="false"><svg class="ico" aria-hidden="true"><use href="#i-more"/></svg></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-wrapper" id="app-wrapper">
+        <main class="content-body">
+            <h1 class="sr-only">Zece — caietul tău de note</h1>
+
+            <!-- ================= DASHBOARD ================= -->
+            <section id="tab-dashboard" class="tab-content active" aria-labelledby="h-dashboard">
+                <header class="azi-head">
+                    <p class="azi-date" id="azi-date"></p>
+                    <h2 id="h-dashboard">Bună ziua!</h2>
+                    <p class="azi-summary" id="azi-summary" aria-live="polite"></p>
+                </header>
+
+                <!-- Conținutul cardurilor e generat în script.js (renderDashboard) -->
+                <div class="azi-grid">
+                    <div class="azi-col azi-col-main">
+                        <section class="glass-card azi-card azi-day" id="azi-day" aria-labelledby="azi-day-title"></section>
+                        <section class="glass-card azi-card azi-todo" id="azi-todo" aria-labelledby="azi-todo-title"></section>
+                        <section class="glass-card azi-card azi-recent" id="azi-recent" aria-labelledby="azi-recent-title"></section>
+                    </div>
+                    <div class="azi-col azi-col-side">
+                        <section class="glass-card azi-card azi-avg" id="azi-avg" aria-label="Media generală"></section>
+                        <section class="glass-card azi-card azi-watch" id="azi-watch" aria-labelledby="azi-watch-title"></section>
+                        <section class="glass-card azi-card azi-more" id="azi-more" aria-labelledby="azi-more-title"></section>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= MATERII ================= -->
+            <section id="tab-catalog" class="tab-content" aria-labelledby="h-catalog">
+                <div class="page-intro">
+                    <div>
+                        <h2 id="h-catalog">Materii și note</h2>
+                        <p>Alege o materie ca să-i vezi notele, evoluția și ce îți trebuie ca să-ți atingi ținta.</p>
+                    </div>
+                    <div class="intro-actions">
+                        <button type="button" class="btn btn-primary" data-action="add-grade"><svg class="ico" aria-hidden="true"><use href="#i-note"/></svg> Adaugă notă</button>
+                        <button type="button" class="btn btn-glass" data-action="add-subject"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg> Materie nouă</button>
+                        <button type="button" class="btn btn-text text-danger" data-action="reset-menu" title="Resetează date"><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg> Resetează</button>
+                    </div>
+                </div>
+
+                <div id="cat-summary" class="cat-summary" aria-label="Rezumat catalog"></div>
+
+                <div id="catalog-layout" class="catalog-layout">
+                    <section class="glass-card cat-list-pane" aria-label="Lista materiilor">
+                        <div class="cat-tools">
+                            <input type="search" id="cat-search" class="glass-input" placeholder="Caută materie…" autocomplete="off" aria-label="Caută materie">
+                            <select id="cat-sort" class="glass-select" aria-label="Sortează materiile">
+                                <option value="name">Nume A–Z</option>
+                                <option value="avg-desc">Media ↓</option>
+                                <option value="avg-asc">Media ↑</option>
+                                <option value="risk">Risc întâi</option>
+                                <option value="missing">Note lipsă</option>
+                            </select>
+                        </div>
+                        <div id="cat-filters" class="cat-filters" role="group" aria-label="Filtrează materiile"></div>
+                        <div id="cat-list" class="cat-list"></div>
+                    </section>
+                    <section id="cat-detail" class="cat-detail-pane" aria-label="Detaliile materiei"></section>
+                </div>
+            </section>
+
+            <!-- ================= CALENDAR ================= -->
+            <section id="tab-calendar" class="tab-content" aria-labelledby="h-calendar">
+                <div class="page-intro">
+                    <div>
+                        <h2 id="h-calendar">Calendar</h2>
+                        <p>Săptămâna ta: orele, testele și temele. Bifează ce ai făcut și adaugă nota direct din test.</p>
+                    </div>
+                    <div class="intro-actions">
+                        <button type="button" class="btn btn-primary" data-action="add-event"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg> Eveniment</button>
+                        <button type="button" class="btn btn-glass" data-action="timetable"><svg class="ico" aria-hidden="true"><use href="#i-calendar-days"/></svg> Orar</button>
+                    </div>
+                </div>
+
+                <div id="cal-overview" class="cal-overview"></div>
+
+                <div class="glass-card cal-shell">
+                    <div class="cal-toolbar">
+                        <div class="cal-nav">
+                            <button type="button" class="btn btn-glass icon-btn" data-action="cal-nav" data-offset="-1" aria-label="Înapoi">&#9664;</button>
+                            <div class="cal-title-wrap">
+                                <h3 id="cal-title" aria-live="polite">…</h3>
+                                <span id="cal-caption" class="calendar-caption"></span>
+                            </div>
+                            <button type="button" class="btn btn-glass icon-btn" data-action="cal-nav" data-offset="1" aria-label="Înainte">&#9654;</button>
+                            <button type="button" class="btn btn-text cal-today-btn" data-action="cal-today">Azi</button>
+                        </div>
+                        <div class="cal-seg" role="group" aria-label="Mod de afișare">
+                            <button type="button" data-action="cal-view" data-view="week" aria-pressed="true">Săptămână</button>
+                            <button type="button" data-action="cal-view" data-view="month" aria-pressed="false">Lună</button>
+                        </div>
+                    </div>
+                    <div id="cal-body"></div>
+                    <p class="subtitle cal-hint">Trage un eveniment pe altă zi ca să-l muți. Atinge o materie din orar ca să adaugi un test sau o temă.</p>
+                </div>
+            </section>
+
+            <!-- ================= SIMULATOR ================= -->
+            <section id="tab-simulator" class="tab-content" aria-labelledby="h-simulator">
+                <div class="page-intro">
+                    <div>
+                        <h2 id="h-simulator">Simulator</h2>
+                        <p>Adaugă note ipotetice și vezi cum s-ar schimba mediile. Notele tale reale nu sunt modificate.</p>
+                    </div>
+                </div>
+                <!-- Conținut generat de renderSimulator() -->
+                <div id="sim-root"></div>
+            </section>
+
+            <!-- ================= STATISTICI ================= -->
+            <section id="tab-statistici" class="tab-content" aria-labelledby="h-statistici">
+                <div class="page-intro">
+                    <div>
+                        <h2 id="h-statistici">Statistici</h2>
+                        <p>Unde te afli, ce merge bine, ce merită îmbunătățit și cum evoluezi.</p>
+                    </div>
+                    <div class="intro-actions">
+                        <button type="button" class="btn btn-glass" data-action="stats-print"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Raport pentru printare</button>
+                    </div>
+                </div>
+
+                <div id="stats-empty" class="glass-card empty-state" hidden>
+                    <div class="empty-state-icon" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chart"/></svg></div>
+                    <h3>Încă nu sunt statistici</h3>
+                    <p>Adaugă materiile și primele note; aici vei vedea media, ce materii au nevoie de atenție și cum evoluezi.</p>
+                    <button class="btn btn-primary" type="button" data-action="add-subject">Adaugă materie</button>
+                </div>
+
+                <!-- Meniul secțiunilor + perioada (lipit sub bara de sus) -->
+                <nav class="stats-nav" id="stats-nav" aria-label="Secțiunile statisticilor">
+                    <div class="stats-nav-links">
+                        <button type="button" class="stats-nav-link active" data-action="stats-jump" data-target="sec-now">Acum</button>
+                        <button type="button" class="stats-nav-link" data-action="stats-jump" data-target="sec-goals">Obiective</button>
+                        <button type="button" class="stats-nav-link" data-action="stats-jump" data-target="sec-subjects">Materii</button>
+                        <button type="button" class="stats-nav-link" data-action="stats-jump" data-target="sec-grades">Note</button>
+                        <button type="button" class="stats-nav-link" data-action="stats-jump" data-target="sec-time">Timp</button>
+                    </div>
+                    <div class="stats-period">
+                        <span aria-hidden="true">Perioada</span>
+                        <select id="stats-period" class="glass-select" aria-label="Perioada analizată (Materii, Note, Timp)"></select>
+                    </div>
+                </nav>
+
+                <div id="stats-body">
+                    <!-- ACUM -->
+                    <section id="sec-now" class="stats-section" aria-label="Acum">
+                        <div class="stats-top">
+                            <section class="glass-card stats-hero" id="stats-hero" aria-label="Media generală"></section>
+                            <div class="stats-kpis" id="stats-kpis"></div>
+                        </div>
+                        <div class="stats-mid">
+                            <section class="glass-card" aria-labelledby="stats-insights-title">
+                                <div class="section-title-row"><div><h3 id="stats-insights-title"><svg class="ico" aria-hidden="true"><use href="#i-bulb"/></svg> Ce să faci acum</h3><span class="subtitle">Concluzii din notele tale, în ordinea importanței.</span></div></div>
+                                <ol id="stats-insights" class="insights mt-3"></ol>
+                            </section>
+                            <div class="stats-side">
+                            <section class="glass-card" aria-labelledby="stats-trends-title">
+                                <div class="section-title-row"><div><h3 id="stats-trends-title"><svg class="ico" aria-hidden="true"><use href="#i-arrows-v"/></svg> Tendințe</h3><span class="subtitle">Ce urcă și ce coboară în ultima vreme.</span></div></div>
+                                <div id="stats-trends" class="stats-trends mt-3"></div>
+                            </section>
+                                <section class="glass-card stats-brief" aria-labelledby="stats-brief-title">
+                                    <div class="section-title-row"><div><h3 id="stats-brief-title"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg> Pe scurt</h3></div></div>
+                                    <dl id="stats-brief" class="brief-list mt-2"></dl>
+                                </section>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- OBIECTIVE -->
+                    <section id="sec-goals" class="stats-section" aria-labelledby="sec-goals-title">
+                        <div class="stats-section-head">
+                            <div><h2 class="stats-section-title" id="sec-goals-title"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg> Obiective</h2><p class="subtitle">Cât de aproape ești de țintele din Setări și ce s-ar întâmpla cu notele care urmează.</p></div>
+                            <span class="section-chip">Azi</span>
+                        </div>
+                        <div class="stats-goals-grid">
+                            <section class="glass-card" aria-label="Progres către obiective">
+                                <div class="goals" id="stats-goals"></div>
+                            </section>
+                            <section class="glass-card whatif" aria-labelledby="whatif-title">
+                                <h3 id="whatif-title"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg> Ce-ar fi dacă…</h3>
+                                <p class="whatif-question" id="whatif-question"></p>
+                                <div class="whatif-slider">
+                                    <input type="range" id="whatif-range" min="5" max="10" step="0.5" value="9" aria-label="Media notelor viitoare">
+                                    <output id="whatif-value" for="whatif-range">9</output>
+                                </div>
+                                <div class="whatif-scale" aria-hidden="true"><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
+                                <div id="whatif-result" class="whatif-result" aria-live="polite"></div>
+                            </section>
+                        </div>
+                    </section>
+
+                    <!-- MATERII -->
+                    <section id="sec-subjects" class="stats-section" aria-labelledby="sec-subjects-title">
+                        <div class="stats-section-head">
+                            <div><h2 class="stats-section-title" id="sec-subjects-title"><svg class="ico" aria-hidden="true"><use href="#i-notebook"/></svg> Materii</h2><p class="subtitle">Fiecare materie față de ținta ei și cât contează în media generală.</p></div>
+                            <span class="period-badge"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg> Tot anul</span>
+                        </div>
+                        <section class="glass-card stats-subjects" aria-label="Materiile tale">
+                            <div class="stats-subjects-head">
+                                <p class="subtitle stats-legend">
+                                    <span><span class="legend-swatch is-risk"></span> zona de risc</span>
+                                    <span><span class="legend-swatch is-target"></span> ținta materiei</span>
+                                    <span><span class="legend-swatch is-fill"></span> media</span>
+                                    <span><span class="legend-swatch is-spark"></span> evoluția mediei</span>
+                                </p>
+                                <select id="stats-sort" class="glass-select stats-sort" aria-label="Ordonează materiile">
+                                    <option value="attention">Ce are nevoie de atenție</option>
+                                    <option value="avg-desc">Media, descrescător</option>
+                                    <option value="trend">În scădere întâi</option>
+                                    <option value="name">Nume A–Z</option>
+                                </select>
+                            </div>
+                            <div id="stats-subject-list"></div>
+                            <div id="stats-nogrades" class="stats-nogrades"></div>
+                        </section>
+                        <section class="glass-card" aria-labelledby="stats-impact-title">
+                            <div class="section-title-row"><div><h3 id="stats-impact-title"><svg class="ico" aria-hidden="true"><use href="#i-scale"/></svg> Ce trage media în sus și în jos</h3><span class="subtitle">Cu cât s-ar schimba media generală fără fiecare materie.</span></div></div>
+                            <div id="stats-impact" class="mt-3"></div>
+                        </section>
+                    </section>
+
+                    <!-- NOTE -->
+                    <section id="sec-grades" class="stats-section" aria-labelledby="sec-grades-title">
+                        <div class="stats-section-head">
+                            <div><h2 class="stats-section-title" id="sec-grades-title"><svg class="ico" aria-hidden="true"><use href="#i-note"/></svg> Note</h2><p class="subtitle">Cum îți merge pe tipuri de evaluare, recordurile tale și ultimele note.</p></div>
+                            <span class="period-badge"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg> Tot anul</span>
+                        </div>
+                        <div class="charts-grid">
+                            <section class="glass-card" aria-labelledby="stats-types-title">
+                                <div class="section-title-row"><div><h3 id="stats-types-title"><svg class="ico" aria-hidden="true"><use href="#i-flask"/></svg> Pe tipuri de evaluare</h3><span class="subtitle">Media la teste, ascultări, teze, teme…</span></div></div>
+                                <div id="stats-types" class="mt-3"></div>
+                            </section>
+                            <section class="glass-card chart-card" aria-labelledby="stats-dist-title">
+                                <div class="section-title-row"><div><h3 id="stats-dist-title"><svg class="ico" aria-hidden="true"><use href="#i-chart"/></svg> Distribuția notelor</h3><span class="subtitle">De câte ori ai luat fiecare notă.</span></div></div>
+                                <div class="chart-frame" id="stats-dist-frame"><canvas id="chartStatDistributie" role="img" aria-label="Distribuția notelor"></canvas></div>
+                                <p class="chart-empty" id="stats-dist-empty" hidden></p>
+                            </section>
+                        </div>
+                        <div class="stats-grades-grid">
+                            <section class="glass-card" aria-labelledby="stats-records-title">
+                                <div class="section-title-row"><div><h3 id="stats-records-title"><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg> Recorduri</h3><span class="subtitle">Seriile, salturile și zilele tale cele mai bune.</span></div></div>
+                                <div id="stats-records" class="records mt-3"></div>
+                            </section>
+                            <section class="glass-card" aria-labelledby="stats-recent-title">
+                                <div class="section-title-row"><div><h3 id="stats-recent-title"><svg class="ico" aria-hidden="true"><use href="#i-clock"/></svg> Ultimele note</h3><span class="subtitle">Și cât a mutat fiecare media materiei.</span></div></div>
+                                <div id="stats-recent" class="mt-3"></div>
+                            </section>
+                        </div>
+                    </section>
+
+                    <!-- TIMP -->
+                    <section id="sec-time" class="stats-section" aria-labelledby="sec-time-title">
+                        <div class="stats-section-head">
+                            <div><h2 class="stats-section-title" id="sec-time-title"><svg class="ico" aria-hidden="true"><use href="#i-hourglass"/></svg> Timp</h2><p class="subtitle">Cum a evoluat media, pe module, pe zile și pe tot anul școlar.</p></div>
+                            <span class="period-badge"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg> Tot anul</span>
+                        </div>
+                        <div class="stats-time-grid">
+                            <section class="glass-card chart-card" aria-labelledby="stats-evo-title">
+                                <div class="section-title-row"><div><h3 id="stats-evo-title"><svg class="ico" aria-hidden="true"><use href="#i-trend-up"/></svg> Evoluția mediei generale</h3><span class="subtitle">Calculată din datele notelor, cu ținta ca reper.</span></div></div>
+                                <div class="chart-frame" id="stats-trend-frame"><canvas id="chartStatTrend" role="img" aria-label="Evoluția mediei generale"></canvas></div>
+                                <p class="chart-empty" id="stats-trend-empty" hidden></p>
+                            </section>
+                            <section class="glass-card" aria-labelledby="stats-modules-title">
+                                <div class="section-title-row"><div><h3 id="stats-modules-title"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg> Pe module</h3><span class="subtitle">Media generală din fiecare modul.</span></div></div>
+                                <div id="stats-modules" class="mt-3"></div>
+                            </section>
+                        </div>
+                        <div class="stats-time-grid">
+                            <section class="glass-card" aria-labelledby="stats-heatmap-title">
+                                <div class="section-title-row"><div><h3 id="stats-heatmap-title"><svg class="ico" aria-hidden="true"><use href="#i-calendar-days"/></svg> Activitate în anul școlar</h3><span class="subtitle">O pătrățică pe zi; cu cât e mai plină, cu atât mai multe note.</span></div></div>
+                                <div id="stats-heatmap" class="mt-3"></div>
+                            </section>
+                            <section class="glass-card" aria-labelledby="stats-weekdays-title">
+                                <div class="section-title-row"><div><h3 id="stats-weekdays-title"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg> Pe zile ale săptămânii</h3><span class="subtitle">Media notelor primite în fiecare zi.</span></div></div>
+                                <div id="stats-weekdays" class="mt-3"></div>
+                            </section>
+                        </div>
+                    </section>
+                </div>
+            </section>
+
+            <!-- ================= SETĂRI ================= -->
+            <section id="tab-setari" class="tab-content" aria-labelledby="h-setari">
+                <div class="settings-header mb-4">
+                    <h2 id="h-setari"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg> Setări</h2>
+                    <div class="flex-center gap-10">
+                        <button type="button" class="btn btn-glass" data-action="setup-open"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg> Configurare rapidă</button>
+                        <button type="button" class="btn btn-text text-danger" data-action="reset-settings">Restabilește implicite</button>
+                        <button type="button" class="btn btn-primary" data-action="save-settings"><svg class="ico" aria-hidden="true"><use href="#i-save"/></svg> Salvează</button>
+                    </div>
+                </div>
+
+                <div class="settings-grid">
+                    <div class="glass-card">
+                        <h3><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg> Obiective</h3>
+                        <div class="form-group mt-3">
+                            <label for="set-primary-goal">Obiectivul arătat pe pagina Azi</label>
+                            <select id="set-primary-goal" class="glass-select">
+                                <option value="gpa">Media generală</option>
+                                <option value="tens">Număr de note de 10</option>
+                                <option value="evals">Număr total de evaluări</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="set-target-gpa">Media generală țintă</label>
+                            <input type="number" id="set-target-gpa" class="glass-input" step="0.01" min="5" max="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="set-min-gpa">Media generală minimă acceptată</label>
+                            <input type="number" id="set-min-gpa" class="glass-input" step="0.01" min="5" max="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="set-target-tens">Ținta pentru note de 10</label>
+                            <input type="number" id="set-target-tens" class="glass-input" step="1" min="1" max="1000">
+                        </div>
+                        <div class="form-group">
+                            <label for="set-target-evals">Ținta pentru numărul de evaluări</label>
+                            <input type="number" id="set-target-evals" class="glass-input" step="1" min="1" max="10000">
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <h3><svg class="ico" aria-hidden="true"><use href="#i-chart"/></svg> Calcul și risc</h3>
+                        <div class="form-group mt-3">
+                            <label for="set-calc-method">Cum se calculează media generală</label>
+                            <select id="set-calc-method" class="glass-select">
+                                <option value="weighted">Ponderată (după numărul de ore)</option>
+                                <option value="arithmetic">Aritmetică (ca în catalog)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="set-rounding">Rotunjirea mediilor</label>
+                            <select id="set-rounding" class="glass-select">
+                                <option value="2">Două zecimale</option>
+                                <option value="0">Rotunjire la întreg</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="set-risk-gpa">Materie la risc sub media</label>
+                            <input type="number" id="set-risk-gpa" class="glass-input" step="0.1" min="1" max="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="set-risk-drop">Avertizează când media scade cu</label>
+                            <input type="number" id="set-risk-drop" class="glass-input" step="0.1" min="0.1" max="5">
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <h3><svg class="ico" aria-hidden="true"><use href="#i-palette"/></svg> Aspect</h3>
+                        <div class="form-group mt-3">
+                            <label for="set-theme">Temă</label>
+                            <select id="set-theme" class="glass-select">
+                                <option value="system">Ca sistemul</option>
+                                <option value="light">Luminos (caiet)</option>
+                                <option value="dark">Întunecat (tablă)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="set-accent">Culoarea cernelii</label>
+                            <select id="set-accent" class="glass-select">
+                                <option value="blue">Albastru pix</option>
+                                <option value="violet">Violet cerneală</option>
+                                <option value="green">Verde</option>
+                                <option value="orange">Portocaliu</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="set-density">Spațiere</label>
+                            <select id="set-density" class="glass-select">
+                                <option value="normal">Normală</option>
+                                <option value="compact">Compactă</option>
+                                <option value="spacious">Aerisită</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="set-cursor">Cursor personalizat</label>
+                            <select id="set-cursor" class="glass-select">
+                                <option value="off">Oprit (cursorul sistemului)</option>
+                                <option value="pen">Pix — rapid, fără nicio întârziere</option>
+                                <option value="on">Cerc animat</option>
+                                <option value="chalk">Jucăuș — urmă de cretă și steluțe la clic</option>
+                            </select>
+                        </div>
+                        
+                    </div>
+
+                    <div class="glass-card settings-wide" id="modules-card">
+                        <h3><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg> Module școlare</h3>
+                        <p class="subtitle mt-2">Purtarea pornește de la 10 la începutul fiecărui modul. Datele implicite sunt cele din structura anului școlar 2026–2027 (OM nr. 3194/2026). Modulele 3 și 4 depind de vacanța mobilă stabilită de inspectoratul școlar din județul tău.</p>
+                        <div class="form-group mt-3">
+                            <label for="set-module-preset">Structura anului</label>
+                            <select id="set-module-preset" class="glass-select">
+                                <option value="2026-feb15">2026–2027 · vacanța mobilă 15–21 februarie</option>
+                                <option value="2026-feb22">2026–2027 · vacanța mobilă 22–28 februarie</option>
+                                <option value="2026-mar01">2026–2027 · vacanța mobilă 1–7 martie</option>
+                                <option value="custom">Personalizat</option>
+                            </select>
+                        </div>
+                        <div id="set-modules" class="modules-edit"></div>
+                        <p class="subtitle mt-2">Pentru un an școlar nou, modifică datele de mai sus și apasă „Salvează”.</p>
+                    </div>
+
+                    <div class="glass-card settings-wide backup-card" id="backup-card">
+                        <div class="section-title-row">
+                            <div>
+                                <h3><svg class="ico" aria-hidden="true"><use href="#i-save"/></svg> Backup și restaurare</h3>
+                                <p class="subtitle mt-2">Datele tale sunt salvate doar în acest browser. Exportă un fișier de backup ca să nu le pierzi și ca să le poți muta pe alt dispozitiv.</p>
+                            </div>
+                        </div>
+
+                        <div class="backup-grid mt-4">
+                            <button type="button" class="reset-option-card backup-option" data-action="backup-export">
+                                <span class="backup-option-icon" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg></span>
+                                <span class="backup-option-text">
+                                    <span class="reset-option-title">Exportă backup</span>
+                                    <span class="reset-option-hint">Materii, note, calendar, scenarii, istoric și setări — într-un fișier .json</span>
+                                </span>
+                            </button>
+                            <button type="button" class="reset-option-card backup-option" data-action="backup-import">
+                                <span class="backup-option-icon" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-upload"/></svg></span>
+                                <span class="backup-option-text">
+                                    <span class="reset-option-title">Importă backup</span>
+                                    <span class="reset-option-hint">Alege un fișier sau trage-l aici. Vezi ce conține înainte de a confirma.</span>
+                                </span>
+                            </button>
+                        </div>
+                        <input type="file" id="backup-file-input" accept=".json,application/json" hidden>
+
+                        <p id="backup-status" class="backup-status mt-3" aria-live="polite"></p>
+
+                        <div id="backup-undo" class="alert-card warning backup-undo mt-3" hidden>
+                            <span id="backup-undo-text">Datele de dinainte de ultimul import sunt păstrate.</span>
+                            <button type="button" class="btn btn-glass" data-action="backup-undo"><svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg> Anulează importul</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <nav class="mobile-bottom-nav" aria-label="Navigație">
+        <button type="button" class="mobile-nav-btn active" data-action="nav" data-tab="tab-dashboard" aria-current="page"><span aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg></span><span>Azi</span></button>
+        <button type="button" class="mobile-nav-btn" data-action="nav" data-tab="tab-catalog"><span aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-notebook"/></svg></span><span>Catalog</span></button>
+        <button type="button" class="mobile-add" data-action="quick-add" aria-haspopup="menu" aria-label="Adaugă"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <button type="button" class="mobile-nav-btn" data-action="nav" data-tab="tab-calendar"><span aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg></span><span>Calendar</span></button>
+        <button type="button" class="mobile-nav-btn" data-action="nav" data-tab="tab-statistici"><span aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chart"/></svg></span><span>Statistici</span></button>
+    </nav>
+
+    <!-- Raportul pentru printare (vizibil doar la print) -->
+    <div id="print-report" class="print-report"></div>
+
+
+    <!-- Notificări (înlocuiesc tabul „Alerte”) -->
+    <div id="notif-panel" class="drawer" hidden>
+        <div class="drawer-backdrop" data-action="notif-close"></div>
+        <section class="drawer-card" role="dialog" aria-modal="true" aria-labelledby="notif-title">
+            <div class="drawer-head">
+                <h2 id="notif-title">Notificări</h2>
+                <button type="button" class="btn btn-glass icon-btn" data-action="notif-close" aria-label="Închide notificările"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
+            </div>
+            <div class="drawer-sub">
+                <p class="subtitle">Apar automat din notele și calendarul tău.</p>
+                <button type="button" class="btn btn-text" data-action="mark-alerts-read"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> Marchează citite</button>
+            </div>
+            <div id="alerte-container" class="drawer-body"></div>
+        </section>
+    </div>
+
+    <!-- Caută și comenzi (Ctrl/⌘ K) -->
+    <div id="cmdk" class="cmdk" hidden>
+        <div class="cmdk-backdrop" data-action="cmdk-close"></div>
+        <div class="cmdk-card" role="dialog" aria-modal="true" aria-label="Caută și comenzi">
+            <div class="cmdk-input-row">
+                <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+                <input id="cmdk-input" type="text" autocomplete="off" spellcheck="false" placeholder="Caută o materie, o notă, un test… sau scrie ce vrei să faci"
+                    role="combobox" aria-expanded="true" aria-controls="cmdk-list" aria-autocomplete="list">
+                <kbd>Esc</kbd>
+            </div>
+            <div id="cmdk-list" class="cmdk-list" role="listbox" aria-label="Rezultate"></div>
+            <div class="cmdk-foot" aria-hidden="true"><span><kbd>↑</kbd><kbd>↓</kbd> alege</span><span><kbd>Enter</kbd> deschide</span><span><kbd>N</kbd> adaugă rapid</span></div>
+        </div>
+    </div>
+
+    <!-- Adaugă rapid (butonul „+”, tasta N) -->
+    <div id="quick-add" class="quick-add" role="dialog" aria-modal="true" aria-label="Adaugă" hidden>
+        <div class="quick-add-backdrop" data-action="quick-add-close"></div>
+        <div class="quick-add-card" role="menu" aria-label="Adaugă">
+            <p class="quick-add-title">Ce adaugi?</p>
+            <button type="button" role="menuitem" class="qa-item" data-action="qa" data-kind="grade"><svg class="ico" aria-hidden="true"><use href="#i-note"/></svg><span><b>Notă</b><small>o notă pe care ai primit-o</small></span><kbd>N</kbd></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="qa" data-kind="test"><svg class="ico" aria-hidden="true"><use href="#i-calendar-check"/></svg><span><b>Test sau lucrare</b><small>o evaluare programată</small></span><kbd>T</kbd></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="qa" data-kind="homework"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span><b>Temă</b><small>de predat la o anumită dată</small></span><kbd>H</kbd></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="qa" data-kind="event"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg><span><b>Alt eveniment</b><small>proiect, prezentare, personal</small></span><kbd>E</kbd></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="qa" data-kind="subject"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span><b>Materie</b><small>o materie nouă în catalog</small></span><kbd>M</kbd></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="qa" data-kind="hypo"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span><b>Notă ipotetică</b><small>încearcă „ce-ar fi dacă” în Simulator</small></span><kbd>S</kbd></button>
+        </div>
+    </div>
+
+    <!-- Telefon: „Mai mult” (secțiunile care nu încap în bara de jos) -->
+    <div id="more-menu" class="quick-add more-menu" role="dialog" aria-modal="true" aria-label="Mai mult" hidden>
+        <div class="quick-add-backdrop" data-action="more-close"></div>
+        <div class="quick-add-card" role="menu" aria-label="Mai mult">
+            <p class="quick-add-title">Mai mult</p>
+            <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="sim"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span><b>Simulator</b><small>„ce-ar fi dacă” pentru notele care urmează</small></span></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="settings"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg><span><b>Setări</b><small>ținte, calcul, aspect, module, backup</small></span></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="theme"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg><span><b id="more-theme-label">Temă întunecată</b><small>caiet sau tablă</small></span></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="setup"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg><span><b>Configurare rapidă</b><small>profil, materii, ținte</small></span></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="backup"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span><b>Exportă backup</b><small>un fișier cu toate datele tale</small></span></button>
+        </div>
+    </div>
+
+    <!-- Configurare la prima pornire (conținutul e generat în script.js) -->
+    <div id="setup" class="setup" hidden>
+        <div class="setup-card" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+            <div class="setup-head">
+                <span class="setup-brand"><svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-logo"/></svg> Zece</span>
+                <ol class="setup-steps" id="setup-steps" aria-label="Pașii configurării"></ol>
+                <button type="button" class="btn btn-text setup-skip" data-action="setup-skip">Sari peste</button>
+            </div>
+            <div class="setup-body" id="setup-body"></div>
+            <footer class="setup-foot" id="setup-foot"></footer>
+        </div>
+    </div>
+
+    <canvas id="cursor-canvas" class="cursor-canvas" aria-hidden="true"></canvas>
+    <div id="toast-container" class="toast-container" role="status" aria-live="polite"></div>
+
+    <div id="action-modal" class="modal-overlay" hidden>
+        <div class="glass-card modal-card" role="dialog" aria-modal="true" aria-labelledby="action-modal-title">
+            <h2 id="action-modal-title">Titlu</h2>
+            <div id="action-modal-body" class="mt-4 mb-4"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-text" id="action-modal-cancel" data-action="modal-cancel">Anulează</button>
+                <button type="button" class="btn btn-primary" id="action-modal-confirm">Confirmă</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
