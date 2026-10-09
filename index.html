@@ -18,7 +18,9 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,CRSV@-15..0,300..900,0..1,0..1&display=swap">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
+    <script src="firebase-config.js" defer></script>
     <script src="script.js" defer></script>
+    <script type="module" src="cloud.js"></script>
 </head>
 <body>
     <!-- Iconițe (linie simplă, 24×24, culoarea textului). Folosire: <svg class="ico"><use href="#i-nume"/></svg> -->
@@ -130,6 +132,7 @@
             <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-simulator"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span>Simulator</span></button>
         </nav>
         <div class="side-foot">
+            <button type="button" id="account-chip" class="account-chip" data-action="account-open"></button>
             <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-setari"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg><span>Setări</span></button>
         </div>
     </aside>
@@ -450,6 +453,10 @@
                 </div>
 
                 <div class="settings-grid">
+                    <div class="glass-card cloud-only account-card">
+                        <h3><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg> Cont și sincronizare</h3>
+                        <div id="account-settings" class="mt-3"></div>
+                    </div>
                     <div class="glass-card">
                         <h3><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg> Obiective</h3>
                         <div class="form-group mt-3">
@@ -661,10 +668,19 @@
         <div class="quick-add-card" role="menu" aria-label="Mai mult">
             <p class="quick-add-title">Mai mult</p>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="sim"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span><b>Simulator</b><small>„ce-ar fi dacă” pentru notele care urmează</small></span></button>
+            <button type="button" role="menuitem" class="qa-item cloud-only" data-action="more-run" data-kind="account"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg><span><b>Cont</b><small class="sync-line" data-sync-status="local"><i class="sync-dot" aria-hidden="true"></i><span class="sync-text">Doar pe acest dispozitiv</span></small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="settings"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg><span><b>Setări</b><small>ținte, calcul, aspect, module, backup</small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="theme"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg><span><b id="more-theme-label">Temă întunecată</b><small>caiet sau tablă</small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="setup"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg><span><b>Configurare rapidă</b><small>profil, materii, ținte</small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="backup"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span><b>Exportă backup</b><small>un fișier cu toate datele tale</small></span></button>
+        </div>
+    </div>
+
+    <!-- Autentificare (doar cu Firebase configurat; conținutul e generat în script.js) -->
+    <div id="auth" class="setup auth" hidden>
+        <div class="setup-card auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+            <button type="button" class="btn btn-text auth-x" data-action="auth-close" aria-label="Închide">✕</button>
+            <div class="auth-body" id="auth-body"></div>
         </div>
     </div>
 

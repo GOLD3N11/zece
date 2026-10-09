@@ -1,0 +1,12 @@
+rules_version = '2';
+// Fiecare utilizator își poate citi, scrie și șterge DOAR propriul document: users/{uid}.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.backup is string
+        && request.resource.data.backup.size() < 900000;
+    }
+  }
+}
