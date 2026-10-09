@@ -1,25 +1,30 @@
-/* ==================== DESIGN TOKENS: CAIET & TABLĂ ==================== */
+/* ==================== DESIGN TOKENS: urNotes ==================== */
 /*
- * Tema luminoasă = caietul de matematică: hârtie albă-rece, caroiaj albastru-pal, pix albastru.
- * Tema întunecată = tabla din clasă: ardezie verde-gri, cretă albă, cretă colorată.
- * Roșul e rezervat pentru „risc” (ca pixul de corectură); galbenul e marker de evidențiere.
+ * Marca urNotes: o foaie de matematică caldă, cerneală violet, post-it galben și marker roz.
+ * Tema întunecată = același caiet, noaptea: hârtie violet-închis, cerneală deschisă.
+ * Roșul e rezervat pentru „risc” (ca pixul de corectură); galbenul e post-it / marker.
  * Numele variabilelor vechi sunt păstrate, ca toate componentele să preia automat noua paletă.
  */
 :root {
     /* Setată din JS după „Culoarea cernelii” (nuanță diferită pe caiet și pe tablă); stă pe <html> */
-    --accent-color: #2347C5;
-    --paper: #FBFCFE;          /* pagina (caietul) */
-    --grid-dot: #D9E1EE;       /* punctele discrete ale caietului */
+    --accent-color: #5B3CC4;
+    --paper: #FBF8F2;          /* pagina (caietul) */
+    --grid-dot: #E9E2F3;       /* caroiajul discret al foii de matematică */
     --sheet: #FFFFFF;          /* foile/cardurile de pe pagină */
-    --rule: #E1E6EE;           /* linii și contururi */
-    --ink: #1E2430;            /* text: grafit */
-    --ink-2: #5A6372;          /* text secundar */
+    --rule: #E7E1F0;           /* linii și contururi */
+    --ink: #241B44;            /* text: cerneală închisă */
+    --ink-2: #5F5680;          /* text secundar */
     --on-accent: #FFFFFF;      /* text pe fundal de accent */
     --risk: #B42318;           /* pix roșu de corectură (contrast ≥ 4.5 pe foi colorate) */
     --ok: #13683F;
     --warn: #7A4F00;           /* text pe ton de avertizare */
-    --marker: #FFE97A;         /* marker galben */
+    --marker: #FFE58A;         /* marker galben */
+    --note: #FFC93C;           /* post-it-ul (mascota, logo, stickere) */
+    --note-fold: #E0A21C;
+    --pink: #FF9EC0;           /* marker roz */
+    --brand-pink: #C8336E;     /* „ur” din logo */
 
+    --font-hand: "Shantell Sans", "Recursive", ui-rounded, system-ui, sans-serif;
     --font-ui: "Recursive", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --radius-lg: 12px;
     --radius-md: 8px;
@@ -47,9 +52,9 @@ body {
 
     --text-primary: var(--ink);
     --text-secondary: var(--ink-2);
-    --input-bg: #F5F7FB;
+    --input-bg: #F6F3FA;
     --input-focus: #FFFFFF;
-    --card-hover: #F6F8FC;
+    --card-hover: #F8F5FC;
 
     --accent-soft: color-mix(in srgb, var(--accent-color) 9%, transparent);
     --accent-green: var(--ok);
@@ -62,13 +67,14 @@ body {
 }
 
 body.dark-mode {
-    --paper: #1E2A25;
-    --grid-dot: rgba(238, 241, 234, 0.07);
-    --sheet: #24322C;
-    --rule: #33443C;
-    --ink: #EEF1EA;
-    --ink-2: #A7B3AB;
-    --on-accent: #14201B;
+    --paper: #17132A;
+    --grid-dot: rgba(241, 237, 250, 0.05);
+    --sheet: #201A38;
+    --rule: #342B55;
+    --ink: #F1EDFA;
+    --ink-2: #B3AACF;
+    --on-accent: #1A1433;
+    --brand-pink: #FF9EC0;
     --risk: #FF8A80;
     --ok: #8FDCAF;
     --warn: #F6D365;
@@ -76,9 +82,9 @@ body.dark-mode {
 
     --shadow-card: none;
     --shadow-card-hover: 0 8px 20px -10px rgba(0, 0, 0, 0.5);
-    --input-bg: #2A3933;
-    --input-focus: #2E3E37;
-    --card-hover: #2A3933;
+    --input-bg: #261F42;
+    --input-focus: #2B2449;
+    --card-hover: #261F42;
     --accent-yellow: #F6D365;
     --star: #F6D365;
     --warning-soft: rgba(246, 211, 101, 0.14);
@@ -107,8 +113,9 @@ body {
     -webkit-font-smoothing: antialiased;
     background-color: var(--bg-color);
     /* Caiet cu puncte: o grilă discretă care nu concurează cu conținutul */
-    background-image: radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1.4px);
-    background-size: 26px 26px;
+    /* Foaie de matematică: un caroiaj discret care nu concurează cu conținutul */
+    background-image: linear-gradient(var(--grid-dot) 1px, transparent 1px), linear-gradient(90deg, var(--grid-dot) 1px, transparent 1px);
+    background-size: 24px 24px;
     color: var(--text-primary);
     min-height: 100vh;
     padding: 0 var(--page-pad) 32px;
@@ -1816,7 +1823,7 @@ button.record:hover { border-color: var(--accent-color); transform: translateY(-
     @page {
         size: A4;
         margin: 13mm 12mm 15mm;
-        @bottom-left { content: "Zece · raport școlar"; font-family: Recursive, system-ui, sans-serif; font-size: 7.5pt; color: #64748b; }
+        @bottom-left { content: "urNotes · raport școlar"; font-family: Recursive, system-ui, sans-serif; font-size: 7.5pt; color: #64748b; }
         @bottom-right { content: "Pagina " counter(page) " din " counter(pages); font-family: Recursive, system-ui, sans-serif; font-size: 7.5pt; color: #64748b; }
     }
     html, body { background: #fff !important; color: #1e2430 !important; padding: 0 !important; }
@@ -1833,13 +1840,13 @@ button.record:hover { border-color: var(--accent-color); transform: translateY(-
     .pr-title .pr-made { margin-top: 1px; font-size: 7.5pt; color: #8a919c; }
     .pr-avg { flex: none; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 46mm; padding: 6px 12px; border: 1.5px solid #1e2430; border-radius: 10px; text-align: right; }
     .pr-avg span { font-size: 8pt; color: #5a6372; }
-    .pr-avg b { font-size: 28pt; line-height: 1.05; color: #2347c5; font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1; font-weight: 750; }
+    .pr-avg b { font-size: 28pt; line-height: 1.05; color: #5B3CC4; font-family: var(--font-hand); font-variation-settings: normal; font-weight: 750; }
     .pr-avg small { font-size: 7.5pt; color: #5a6372; }
 
     .pr-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 10px 0 4px; }
     .pr-kpis div { display: flex; flex-direction: column; padding: 6px 9px; border: 1px solid #d5dbe5; border-radius: 7px; }
     .pr-kpis span { font-size: 7.5pt; font-weight: 600; color: #5a6372; }
-    .pr-kpis b { font-size: 15pt; line-height: 1.15; font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1; font-weight: 700; }
+    .pr-kpis b { font-size: 15pt; line-height: 1.15; font-family: var(--font-hand); font-variation-settings: normal; font-weight: 700; }
     .pr-kpis small { font-size: 7pt; color: #5a6372; }
     .pr-kpis .is-risk b { color: #b42318; }
 
@@ -2216,6 +2223,7 @@ h2 .ico, h3 .ico, h4 .ico { margin-right: 0.15em; color: var(--accent-color); }
 
 /* Tipografie: Recursive drept pentru interfață */
 h1, h2, h3, h4 { font-weight: 700; letter-spacing: -0.015em; }
+h2 { font-family: var(--font-hand); letter-spacing: -0.01em; }
 .page-intro h2 { font-size: clamp(24px, 2.6vw, 31px); font-weight: 750; letter-spacing: -0.025em; }
 .page-intro p { font-size: 14px; }
 h3 { font-size: 15.5px; }
@@ -2226,7 +2234,7 @@ h3 { font-size: 15.5px; }
 .cal-countdown b, .mod-val, .type-avg, .sim-grade-btn, .whatif-slider output, .cal-col-date, .trend-row-avg, .goal-pct {
     font-family: var(--font-ui);
     /* casual + ușor înclinat + forme cursive = ca scris cu pixul, dar citeț */
-    font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1;
+    font-family: var(--font-hand); font-variation-settings: normal;
     font-weight: 700;
     letter-spacing: -0.005em;
 }
@@ -2639,13 +2647,14 @@ body.cursor-text #custom-cursor-dot { opacity: 0; }
 .drawer-body .alert-card.success { border-left-color: var(--ok); }
 
 /* ==================== PAGINA „AZI” ==================== */
-.azi-head { margin: 4px 0 22px; }
+.azi-head { display: flex; align-items: center; justify-content: space-between; gap: 18px 28px; margin: 4px 0 22px; }
+.azi-head-text { min-width: 0; }
 .azi-date { font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .azi-head h2 {
     margin-top: 4px;
     font-size: clamp(28px, 3.2vw, 38px);
     line-height: 1.1;
-    font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1;
+    font-family: var(--font-hand); font-variation-settings: normal;
     font-weight: 750;
     letter-spacing: -0.01em;
 }
@@ -2691,7 +2700,7 @@ body.cursor-text #custom-cursor-dot { opacity: 0; }
 .azi-lesson-n {
     text-align: center; padding-right: 6px;
     font-size: 15px; font-weight: 700; color: color-mix(in srgb, var(--risk) 60%, var(--ink-2));
-    font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1;
+    font-family: var(--font-hand); font-variation-settings: normal;
 }
 .azi-lesson-main {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0;
@@ -2961,8 +2970,8 @@ body.cursor-text #custom-cursor-dot { opacity: 0; }
     position: fixed; inset: 0; z-index: 1800;
     display: grid; place-items: center; padding: 24px;
     background-color: var(--paper);
-    background-image: radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1.4px);
-    background-size: 26px 26px;
+    background-image: linear-gradient(var(--grid-dot) 1px, transparent 1px), linear-gradient(90deg, var(--grid-dot) 1px, transparent 1px);
+    background-size: 24px 24px;
     animation: fadeIn 0.2s ease-out;
 }
 .setup[hidden] { display: none; }
@@ -2995,7 +3004,7 @@ body.cursor-text #custom-cursor-dot { opacity: 0; }
 .setup-body { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 32px 24px 72px; }
 .setup-body h2 {
     font-size: clamp(24px, 3vw, 30px); line-height: 1.15;
-    font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1; font-weight: 750;
+    font-family: var(--font-hand); font-variation-settings: normal; font-weight: 750;
 }
 .setup-body h2:focus { outline: none; }
 .setup-hero p, .setup-lead { margin-top: 8px; max-width: 60ch; font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
@@ -3063,7 +3072,7 @@ body.cursor-text #custom-cursor-dot { opacity: 0; }
 }
 .setup-hours button:hover:not(:disabled) { border-color: var(--accent-color); color: var(--accent-color); }
 .setup-hours button:disabled { opacity: 0.35; cursor: default; }
-.setup-hours b { min-width: 18px; text-align: center; font-size: 17px; font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1; }
+.setup-hours b { min-width: 18px; text-align: center; font-size: 17px; font-family: var(--font-hand); font-variation-settings: normal; }
 .setup-hours small { width: 26px; font-size: 12px; color: var(--ink-2); }
 .setup-add { display: flex; gap: 8px; margin-top: 14px; }
 .setup-add .glass-input { flex: 1; }
@@ -3115,7 +3124,7 @@ body.dark-mode { --ev-mix: #fff; --ev-amt: 52%; }
 .brief-row dd small { color: var(--ink-2); font-size: 12px; }
 .brief-link { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 650; cursor: pointer; text-align: right; }
 .brief-link:hover { color: var(--accent-color); text-decoration: underline; text-underline-offset: 3px; }
-.brief-num { font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1; font-weight: 700; font-size: 15px; }
+.brief-num { font-family: var(--font-hand); font-variation-settings: normal; font-weight: 700; font-size: 15px; }
 .brief-num.tone-hi { color: var(--ok); }
 .brief-num.tone-mid { color: var(--accent-color); }
 .brief-num.tone-low { color: var(--warn); }
@@ -3128,7 +3137,7 @@ body.dark-mode { --ev-mix: #fff; --ev-amt: 52%; }
 /* Pe zile ale săptămânii: coloane verticale, la fel de înalte ca harta de activitate */
 .wd-bars { display: flex; justify-content: space-between; gap: 8px; height: 190px; margin: 6px 0 0; padding: 0; list-style: none; }
 .wd-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
-.wd-val { font-size: 13px; font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1; font-weight: 700; }
+.wd-val { font-size: 13px; font-family: var(--font-hand); font-variation-settings: normal; font-weight: 700; }
 .wd-track { position: relative; flex: 1; width: min(30px, 100%); border-radius: 7px 7px 3px 3px; background: color-mix(in srgb, var(--rule) 70%, transparent); overflow: hidden; }
 .wd-fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 7px 7px 3px 3px; background: var(--accent-color); }
 .wd-col.is-best .wd-fill { background: var(--ok); }
@@ -3159,18 +3168,16 @@ body.dark-mode { --ev-mix: #fff; --ev-amt: 52%; }
 body.cursor-chalk .cursor-canvas { display: block; }
 @media print { .cursor-canvas { display: none !important; } }
 
-/* ==================== MARCA „ZECE” ==================== */
-:root { --logo-tile: #FBFCFE; --logo-edge: #D5DBE5; --logo-grid: #DCE3EE; --logo-red: #D3302A; }
-body { --logo-ink: var(--accent-color); }
-body.dark-mode { --logo-tile: #24322C; --logo-edge: #3A4C43; --logo-grid: #2E3F37; --logo-red: #FF8A80; --logo-ink: #EEF1EA; }
+/* ==================== MARCA „urNotes” ==================== */
 .brand-logo { flex: none; width: 40px; height: 40px; display: block; }
 .topbar-brand .brand-logo { width: 34px; height: 34px; }
 .setup-brand .brand-logo { width: 22px; height: 22px; }
 .brand-name {
-    font-variation-settings: "CASL" 1, "slnt" -9, "CRSV" 1;
+    font-family: var(--font-hand); font-variation-settings: normal;
     font-weight: 800;
-    letter-spacing: 0;
+    letter-spacing: -0.01em;
 }
+.brand-ur { color: var(--brand-pink); }
 .side-brand-text .brand-name { font-size: 21px; line-height: 1.05; }
 .topbar-brand .brand-name { font-size: 19px; }
 
@@ -3295,3 +3302,55 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
 #account-settings { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
 #account-settings .account-actions { margin-top: 0; }
 #account-settings > .subtitle { flex: 1 1 360px; margin: 0; }
+
+
+/* ==================== MASCOTA (post-it-ul elevului) ==================== */
+.buddy { flex: none; width: 92px; height: 92px; display: block; filter: drop-shadow(0 6px 10px rgba(36, 27, 68, 0.14)); }
+.azi-buddy { display: flex; align-items: center; flex-direction: row-reverse; gap: 6px; flex: 0 1 430px; min-width: 0; }
+.azi-buddy:empty { display: none; }
+.buddy-bubble {
+    position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0;
+    padding: 10px 14px 11px; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 16px 16px 4px 16px;
+    font-size: 14px; line-height: 1.45; color: var(--ink);
+}
+.buddy-bubble.is-sm { font-size: 13.5px; padding: 8px 12px 9px; }
+.buddy-name { font-family: var(--font-hand); font-weight: 750; font-size: 13px; color: var(--accent-color); }
+.buddy-bubble span { font-family: var(--font-hand); font-weight: 450; }
+@media (prefers-reduced-motion: no-preference) {
+    .buddy { transform-origin: 50% 90%; animation: buddyIn 0.5s cubic-bezier(.3,1.6,.5,1) both; }
+    .buddy[data-mood="happy"] { animation: buddyIn 0.5s cubic-bezier(.3,1.6,.5,1) both, buddyBob 3.2s ease-in-out 0.6s infinite; }
+}
+@keyframes buddyIn { from { transform: scale(0.6) rotate(-10deg); opacity: 0; } }
+@keyframes buddyBob { 50% { transform: translateY(-3px) rotate(2deg); } }
+@media (max-width: 760px) {
+    .azi-head { flex-direction: column; align-items: stretch; }
+    .azi-buddy { flex-direction: row; flex-basis: auto; }
+    .azi-buddy .buddy { width: 64px; height: 64px; }
+    .azi-buddy .buddy-bubble { border-radius: 16px 16px 16px 4px; }
+}
+
+/* Configurare: „Cum te cheamă?” */
+.setup-me { display: flex; align-items: center; gap: 18px; margin-top: 22px; padding: 16px 18px; border: 1px solid var(--rule); border-radius: 14px; background: var(--paper); }
+.setup-me-buddy { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 0 150px; }
+.setup-me-buddy .buddy-bubble { text-align: center; border-radius: 16px; }
+.setup-me-fields { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.setup-me-fields .form-group { margin-bottom: 8px; }
+@media (max-width: 560px) {
+    .setup-me { flex-direction: column; align-items: stretch; }
+    .setup-me-buddy { flex-basis: auto; flex-direction: row; }
+    .setup-me-buddy .buddy { width: 64px; height: 64px; }
+}
+
+/* Setări: „Tu și colegul tău”, o bandă pe toată lățimea */
+.settings-grid > .me-card { grid-column: 1 / -1; }
+.me-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 12px 22px; }
+.me-row .form-group { margin: 0; }
+.me-preview { display: flex; align-items: center; gap: 8px; }
+.me-preview .buddy { width: 64px; height: 64px; }
+@media (max-width: 760px) { .me-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* Realizările, ca stickere lipite în caiet */
+.badges-container .badge-pill.unlocked { background: #FFE08A; color: #2A1B5C; border-color: transparent; transform: rotate(-2deg); box-shadow: 0 2px 0 rgba(36, 27, 68, 0.08); }
+.badges-container .badge-pill.unlocked:nth-child(3n+2) { background: #FFD1E1; transform: rotate(1.5deg); }
+.badges-container .badge-pill.unlocked:nth-child(3n) { background: #DCD2F7; transform: rotate(-1deg); }
+.badges-container .badge-pill.unlocked .ico { color: #5B3CC4; }

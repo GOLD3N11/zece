@@ -1,6 +1,6 @@
-# Zece — caietul tău de note
+# urNotes — notele tale, în stilul tău
 
-Aplicație web pentru evidența notelor școlare: medii, ținte, purtare, calendar cu teste și teme, orar, statistici, simulator „ce-ar fi dacă” și raport pentru printare.
+Aplicație web pentru evidența notelor școlare, personalizată pentru fiecare elev (numele tău, culoarea ta și o mascotă-post-it pe care o botezi tu): medii, ținte, purtare, calendar cu teste și teme, orar, statistici, simulator „ce-ar fi dacă” și raport pentru printare.
 
 **Deschide aplicația:** https://gold3n11.github.io/zece/
 

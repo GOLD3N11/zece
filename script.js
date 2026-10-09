@@ -16,7 +16,8 @@ const KEYS = {
     backupUndo: "pro_backup_undo_v4", // copia datelor de dinainte de ultimul import (pentru „Anulează importul”)
     lastExport: "pro_last_export_v4", // momentul ultimului backup exportat
     timetable: "pro_timetable_db_v4", // orarul săptămânal: { 1: ["Matematică", ...], ... }
-    purtare: "pro_purtare_db_v4"      // purtarea pe module: { grades: { "2026-2": { val, reason } }, ... }
+    purtare: "pro_purtare_db_v4",     // purtarea pe module: { grades: { "2026-2": { val, reason } }, ... }
+    brand: "pro_brand_v4"             // a trecut o dată prin schimbarea mărcii (Zece → urNotes)
 };
 
 
@@ -55,11 +56,13 @@ const DEFAULT_SETTINGS = {
     goals: { primary: "gpa", targetGPA: 10, minGPA: 9 },
     calc: { method: "weighted", rounding: "2", riskThreshold: 8, riskDrop: 0.5 },
     targets: { tens: 20, evals: 30 },
-    appearance: { theme: "system", accent: "blue", density: "normal", cursor: "off" },
+    appearance: { theme: "system", accent: "violet", density: "normal", cursor: "off" },
     // Modulele anului școlar (pentru purtare): [{ start, end }] × 5
     modules: presetModules(),
     // Raportul pentru printare: datele de pe antet, perioada și secțiunile alese ultima dată
-    report: { name: "", cls: "", period: "year", sections: {} }
+    report: { name: "", cls: "", period: "year", sections: {} },
+    // Personalizare: cum îl cheamă pe elev și cum și-a botezat mascota (post-it-ul de pe pagina Azi)
+    profile: { name: "", buddy: "Tiți" }
 };
 
 const REPORT_SECTIONS = [
@@ -82,8 +85,9 @@ const ACHIEVEMENTS = [
 
 // Culoarea cernelii: o nuanță pentru caiet (luminos) și una mai deschisă, ca de cretă, pentru tablă (întunecat).
 const ACCENTS = {
+    violet: { light: "#5B3CC4", dark: "#C3A6FF" },
     blue: { light: "#2347C5", dark: "#8DB4FF" },
-    violet: { light: "#6D3FC6", dark: "#C3A6FF" },
+    pink: { light: "#B8336A", dark: "#FF9EC0" },
     green: { light: "#18794E", dark: "#8FDCAF" },
     orange: { light: "#C2410C", dark: "#FFB27A" }
 };
@@ -701,6 +705,14 @@ const TIME_RE = /^\d{2}:\d{2}$/;
 function loadState() {
     applyLoadedData(readStoredData(name => safeParseJSON(localStorage.getItem(KEYS[name]), null)));
 
+    // urNotes: cine avea culoarea implicită de dinainte (albastru) trece o singură dată pe violetul noii mărci.
+    try {
+        if (!localStorage.getItem(KEYS.brand)) {
+            if (state.settings.appearance.accent === "blue") state.settings.appearance.accent = "violet";
+            localStorage.setItem(KEYS.brand, "urnotes");
+        }
+    } catch (_) { /* fără stocare: rămâne culoarea din setări */ }
+
     // Cheia veche de alerte nu mai e folosită.
     try {
         localStorage.removeItem(KEYS.alerts);
@@ -734,6 +746,8 @@ function applyLoadedData({ data, sim: loadedSim }) {
     sim = loadedSim;
 }
 
+const cleanName = (value, max) => typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
+
 /** Setări complete și valide, indiferent ce conține sursa. */
 function sanitizeSettings(raw) {
     const s = deepMerge(DEFAULT_SETTINGS, raw);
@@ -760,7 +774,7 @@ function sanitizeSettings(raw) {
         },
         appearance: {
             theme: pick(s.appearance.theme, ["system", "light", "dark"], "system"),
-            accent: pick(s.appearance.accent, Object.keys(ACCENTS), "blue"),
+            accent: pick(s.appearance.accent, Object.keys(ACCENTS), "violet"),
             density: pick(s.appearance.density, ["normal", "compact", "spacious"], "normal"),
             cursor: pick(s.appearance.cursor, CURSOR_MODES, "off")
         },
@@ -771,6 +785,10 @@ function sanitizeSettings(raw) {
             period: typeof s.report.period === "string" && /^(year|30d|m[1-5])$/.test(s.report.period) ? s.report.period : "year",
             sections: Object.fromEntries(REPORT_SECTIONS.map(x => [x.key,
                 isPlainObject(s.report.sections) && typeof s.report.sections[x.key] === "boolean" ? s.report.sections[x.key] : x.on]))
+        },
+        profile: {
+            name: cleanName(s.profile.name, 40),
+            buddy: cleanName(s.profile.buddy, 20) || DEFAULT_SETTINGS.profile.buddy
         }
     };
 }
@@ -1283,6 +1301,77 @@ function greeting(hour) {
     return "Bună seara";
 }
 
+/* ==================== PERSONALIZARE: ELEVUL ȘI MASCOTA ==================== */
+/*
+ * Mascota e un post-it cu fața desenată; elevul îi alege numele (Setări sau configurarea).
+ * Starea ei vine din note și din calendar: bucuroasă după un 10 sau când media e sus,
+ * concentrată înaintea unui test, îngrijorată când o materie e sub pragul de risc.
+ */
+const firstName = () => state.settings.profile.name.split(" ")[0] || "";
+const buddyName = () => state.settings.profile.buddy || DEFAULT_SETTINGS.profile.buddy;
+const formatAvg = v => Number(v).toFixed(2);
+
+const BUDDY_MOUTH = {
+    happy: "M50 72 Q60 84 70 72",
+    focused: "M52 76 H68",
+    worried: "M50 81 Q60 70 70 81"
+};
+
+function buddySVG(mood = "happy", cls = "") {
+    return `<svg class="buddy ${cls}" viewBox="0 0 120 120" aria-hidden="true" data-mood="${mood}">
+        <g transform="rotate(-6 60 62)">
+            <path d="M14 18H106V86L88 104H14Z" fill="#FFC93C"/>
+            <path d="M88 104V86H106Z" fill="#E0A21C"/>
+            <rect x="44" y="10" width="32" height="13" fill="#FF9EC0"/>
+            <circle cx="44" cy="55" r="9.5" fill="#FFFFFF"/><circle cx="76" cy="55" r="9.5" fill="#FFFFFF"/>
+            <circle cx="46" cy="57" r="4.5" fill="#2A1B5C"/><circle cx="78" cy="57" r="4.5" fill="#2A1B5C"/>
+            ${mood === "worried" ? `<path d="M36 41 L50 44M84 41 L70 44" stroke="#2A1B5C" stroke-width="3" stroke-linecap="round"/>` : ""}
+            <ellipse cx="31" cy="70" rx="6.5" ry="3.8" fill="#FF7AA8" opacity="0.75"/><ellipse cx="89" cy="70" rx="6.5" ry="3.8" fill="#FF7AA8" opacity="0.75"/>
+            <path d="${BUDDY_MOUTH[mood] || BUDDY_MOUTH.happy}" stroke="#2A1B5C" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+        </g>
+    </svg>`;
+}
+
+/** Ce simte și ce îi spune mascota elevului azi. */
+function buddyState({ today }, { tests }) {
+    const name = firstName();
+    const hey = name ? `, ${name}` : "";
+    const mats = Object.keys(state.subjects);
+    if (!mats.length) return { mood: "happy", text: `Eu sunt ${buddyName()}, colegul tău de bancă. Adaugă-ți materiile și te ajut să ții evidența notelor.` };
+
+    // Cel mai recent 10 (ultimele 7 zile)
+    let ten = null;
+    for (const mat of mats) {
+        for (const g of state.subjects[mat].grades) {
+            if (g.val === 10 && g.date && daysBetween(g.date, today) <= 7 && (!ten || g.date > ten.date)) ten = { mat, date: g.date };
+        }
+    }
+    const risk = mats
+        .filter(mat => metrics.subjects[mat]?.statusClass === "badge-danger")
+        .sort((a, b) => metrics.subjects[a].exactAvg - metrics.subjects[b].exactAvg)[0];
+    const soon = tests.find(o => daysBetween(today, o.date) <= 1);
+
+    if (ten && daysBetween(ten.date, today) <= 2) return { mood: "happy", text: `Un 10 la ${ten.mat}! Bravo${hey}, ți-am lipit o steluță.` };
+    if (risk) return { mood: "worried", text: `${risk} e la ${formatAvg(metrics.subjects[risk].exactAvg)}, sub pragul tău de ${formatAvg(state.settings.calc.riskThreshold)}. Facem un plan împreună?` };
+    if (soon) {
+        const what = `${soon.ev.type.toLocaleLowerCase("ro")}${soon.ev.subject ? ` la ${soon.ev.subject}` : ""}`;
+        return { mood: "focused", text: `${capitalize(dayWord(soon.date, today))} ai ${what}. Recapitulăm puțin${hey}?` };
+    }
+    if (ten) return { mood: "happy", text: `Săptămâna asta ai luat 10 la ${ten.mat}. Continuă tot așa${hey}!` };
+    if (metrics.globalAvg >= 9) return { mood: "happy", text: `Media ta e ${formatAvg(metrics.globalAvg)}. Ești pe drumul cel bun${hey}!` };
+    if (metrics.totalGrades === 0) return { mood: "happy", text: `Când primești prima notă, scrie-o aici și îți calculez media${hey}.` };
+    return { mood: "happy", text: `Sunt aici${hey}. Pas cu pas, spre ținta de ${formatAvg(state.settings.goals.targetGPA)}.` };
+}
+
+function renderBuddy(days, todo) {
+    const box = $("azi-buddy");
+    if (!box) return;
+    const { mood, text } = buddyState(days, todo);
+    box.innerHTML = `
+        ${buddySVG(mood)}
+        <p class="buddy-bubble"><b class="buddy-name">${escapeHTML(buddyName())}</b><span>${escapeHTML(text)}</span></p>`;
+}
+
 /** Evenimente trecute nefinalizate (ultimele 45 de zile); dintr-o serie, doar ultima apariție (+ câte mai vechi). */
 function missedOccurrences(links = gradeLinks(), today = getLocalDateKey()) {
     const out = [];
@@ -1324,8 +1413,10 @@ function renderDashboard() {
         longDateLabel(days.today),
         mod ? `Modulul ${mod.n}, săptămâna ${Math.floor(daysBetween(weekStart(mod.start), days.today) / 7) + 1}` : "Vacanță"
     ].join(" · "));
-    setText("h-dashboard", `${greeting(now.getHours())}!`);
+    const first = firstName();
+    setText("h-dashboard", `${greeting(now.getHours())}${first ? `, ${first}` : ""}!`);
     setText("azi-summary", homeSummary(days, todo));
+    renderBuddy(days, todo);
 
     $("azi-day").innerHTML = homeDayHTML(days, links);
     $("azi-todo").innerHTML = homeTodoHTML(todo, links, days.today);
@@ -2514,7 +2605,9 @@ const SETTINGS_FIELDS = {
     "set-theme": ["appearance", "theme"],
     "set-accent": ["appearance", "accent"],
     "set-density": ["appearance", "density"],
-    "set-cursor": ["appearance", "cursor"]
+    "set-cursor": ["appearance", "cursor"],
+    "set-name": ["profile", "name"],
+    "set-buddy": ["profile", "buddy"]
 };
 
 function loadSettingsIntoUI() {
@@ -2524,6 +2617,16 @@ function loadSettingsIntoUI() {
     }
     renderModulesSettings();
     renderBackupStatus();
+    renderBuddyPreview();
+}
+
+/** Mascota de lângă câmpurile „Tu și colegul tău” (Setări), cu numele scris în câmp. */
+function renderBuddyPreview() {
+    const box = $("set-buddy-preview");
+    if (!box) return;
+    const name = cleanName($("set-buddy")?.value, 20) || DEFAULT_SETTINGS.profile.buddy;
+    const who = cleanName($("set-name")?.value, 40).split(" ")[0];
+    box.innerHTML = `${buddySVG("happy")}<p class="buddy-bubble is-sm"><b class="buddy-name">${escapeHTML(name)}</b><span>${who ? `Salut, ${escapeHTML(who)}!` : "Salut!"}</span></p>`;
 }
 
 /* ==================== LISTE DERULANTE PERSONALIZATE ==================== */
@@ -2818,7 +2921,7 @@ function chartsAvailable() {
 }
 
 function chartTheme() {
-    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent-color").trim() || ACCENTS.blue.light;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent-color").trim() || ACCENTS.violet.light;
     return {
         accent,
         surface: document.body.classList.contains("dark-mode") ? "#111827" : "#ffffff",
@@ -3979,7 +4082,7 @@ function openReportPanel() {
             <div class="form-row">
                 <div class="form-group">
                     <label for="rep-name">Numele elevului <span class="label-hint">(opțional)</span></label>
-                    <input id="rep-name" class="glass-input" maxlength="60" autocomplete="name" value="${escapeHTML(r.name)}" placeholder="ex: Andrei Popescu">
+                    <input id="rep-name" class="glass-input" maxlength="60" autocomplete="name" value="${escapeHTML(r.name || state.settings.profile.name)}" placeholder="ex: Andrei Popescu">
                 </div>
                 <div class="form-group">
                     <label for="rep-cls">Clasa <span class="label-hint">(opțional)</span></label>
@@ -4456,10 +4559,23 @@ function setupWelcomeHTML() {
     const has = Object.keys(state.subjects).length > 0;
     return `
         <div class="setup-hero">
-            <h2 id="setup-title" tabindex="-1">${has ? "Configurare rapidă" : "Bun venit în caietul tău de note!"}</h2>
+            <h2 id="setup-title" tabindex="-1">${has ? "Configurare rapidă" : "Bun venit în urNotes!"}</h2>
             <p>${has
                 ? "Adaugă dintr-o dată materiile unui profil și stabilește ținta și anul școlar. Materiile și notele pe care le ai rămân neatinse."
                 : "În patru pași scurți îți pregătesc materiile, ținta și anul școlar. Poți schimba orice mai târziu, din Catalog și Setări."}</p>
+        </div>
+        <div class="setup-me">
+            <div class="setup-me-buddy" id="setup-buddy" aria-hidden="true">${setupBuddyHTML()}</div>
+            <div class="setup-me-fields">
+                <div class="form-group">
+                    <label for="setup-me-name">Cum te cheamă?</label>
+                    <input type="text" id="setup-me-name" class="glass-input" maxlength="40" autocomplete="given-name" placeholder="ex: Tudor" value="${escapeHTML(state.settings.profile.name)}">
+                </div>
+                <div class="form-group">
+                    <label for="setup-me-buddy">Cum îl botezi pe colegul tău, post-it-ul?</label>
+                    <input type="text" id="setup-me-buddy" class="glass-input" maxlength="20" autocomplete="off" placeholder="${DEFAULT_SETTINGS.profile.buddy}" value="${escapeHTML(state.settings.profile.buddy)}">
+                </div>
+            </div>
         </div>
         <div class="setup-choices">
             <button type="button" class="setup-choice" data-action="setup-next" data-autofocus>
@@ -4469,6 +4585,11 @@ function setupWelcomeHTML() {
                 ${icon("upload")}<span><b>Am deja un backup</b><small>Încarc fișierul .json exportat din această aplicație.</small></span>${icon("chevron", "setup-arrow")}
             </button>
         </div>`;
+}
+
+function setupBuddyHTML() {
+    const who = firstName();
+    return `${buddySVG("happy")}<p class="buddy-bubble is-sm"><b class="buddy-name">${escapeHTML(buddyName())}</b><span>${who ? `Încântat, ${escapeHTML(who)}!` : "Salut! Cum te cheamă?"}</span></p>`;
 }
 
 function setupProfileHTML() {
@@ -4746,6 +4867,15 @@ function bindSetupEvents() {
     });
     box.addEventListener("input", event => {
         const t = event.target;
+        if (t.id === "setup-me-name" || t.id === "setup-me-buddy") {
+            // Se salvează pe loc: numele rămân chiar dacă elevul sare peste restul configurării.
+            const p = state.settings.profile;
+            if (t.id === "setup-me-name") p.name = cleanName(t.value, 40);
+            else p.buddy = cleanName(t.value, 20) || DEFAULT_SETTINGS.profile.buddy;
+            saveState();
+            $("setup-buddy").innerHTML = setupBuddyHTML();
+            return;
+        }
         if (t.classList.contains("setup-name")) {
             const r = ui.setup?.rows[Number(t.dataset.i)];
             if (r) r.name = t.value;
@@ -4868,6 +4998,12 @@ async function onCloudUser(user) {
     closeAuth();
     renderAccount();
     await reconcileWithCloud();
+    // Numele din contul Google devine numele elevului, dacă nu și-a scris deja altul.
+    if (cloud.user?.uid === user.uid && !state.settings.profile.name && user.name) {
+        state.settings.profile.name = cleanName(user.name, 40);
+        refresh();
+        loadSettingsIntoUI();
+    }
     if (cloud.user?.uid === user.uid) cloud.unwatch = cloud.api.watch(onRemoteChange);
 }
 
@@ -5003,7 +5139,7 @@ function markSynced(at) {
 /** O schimbare venită de pe alt dispozitiv. */
 async function onRemoteChange(remote) {
     if (cloud.needsReconcile) return reconcileWithCloud(); // prima citire a eșuat: comparăm cu grijă, nu înlocuim orbește
-    if (!remote || !cloud.user || remote.device === deviceId() || remote.updatedAt <= cloud.lastSyncAt) return;
+    if (!remote?.json || !cloud.user || remote.device === deviceId() || remote.updatedAt <= cloud.lastSyncAt) return;
     if (dataFingerprint(remote.json) === dataFingerprint(dataJSON())) return markSynced(remote.updatedAt);
     if (!cloud.dirty) return applyRemoteData(remote, { toast: "↻ Am adus modificările făcute pe alt dispozitiv." });
     if (cloud.asking) return;
@@ -6407,9 +6543,11 @@ function saveSettings() {
     s.calc.riskThreshold = clampNumber(field("set-risk-gpa"), 1, 10, 8);
     s.calc.riskDrop = clampNumber(field("set-risk-drop"), 0.1, 5, 0.5);
     s.appearance.theme = field("set-theme") || "system";
-    s.appearance.accent = ACCENTS[field("set-accent")] ? field("set-accent") : "blue";
+    s.appearance.accent = ACCENTS[field("set-accent")] ? field("set-accent") : "violet";
     s.appearance.density = field("set-density") || "normal";
     s.appearance.cursor = CURSOR_MODES.includes(field("set-cursor")) ? field("set-cursor") : "off";
+    s.profile.name = cleanName(field("set-name"), 40);
+    s.profile.buddy = cleanName(field("set-buddy"), 20) || DEFAULT_SETTINGS.profile.buddy;
 
     applyAppearanceSettings();
     refresh();
@@ -6424,7 +6562,7 @@ function resetSettings() {
         confirmText: "Restabilește",
         danger: true,
         onConfirm: () => {
-            state.settings = clone(DEFAULT_SETTINGS);
+            state.settings = { ...clone(DEFAULT_SETTINGS), profile: state.settings.profile }; // numele rămân
             applyAppearanceSettings();
             closeActionModal();
             refresh();
@@ -6546,7 +6684,7 @@ function downloadJSON(obj, filename) {
 
 function exportBackup({ silent = false } = {}) {
     try {
-        downloadJSON(buildBackup(), `zece-backup-${getLocalDateKey()}.json`);
+        downloadJSON(buildBackup(), `urnotes-backup-${getLocalDateKey()}.json`);
     } catch (err) {
         console.error("Exportul a eșuat.", err);
         showToast("⚠️ Exportul a eșuat.");
@@ -6746,7 +6884,7 @@ function applyAppearanceSettings() {
 
     document.body.classList.toggle("dark-mode", dark);
     document.documentElement.classList.toggle("theme-dark", dark); // bare de derulare și controale native întunecate
-    document.documentElement.style.setProperty("--accent-color", (ACCENTS[a.accent] || ACCENTS.blue)[dark ? "dark" : "light"]);
+    document.documentElement.style.setProperty("--accent-color", (ACCENTS[a.accent] || ACCENTS.violet)[dark ? "dark" : "light"]);
 
     document.body.classList.remove("layout-compact", "layout-spacious");
     if (a.density === "compact" || a.density === "spacious") document.body.classList.add(`layout-${a.density}`);
@@ -6813,7 +6951,7 @@ const CMDK_ACTIONS = [
     { label: "Orarul săptămânal", icon: "calendar-days", words: "orar ore program", run: () => openTimetableModal() },
     { label: "Raport pentru printare", icon: "printer", words: "raport print pdf", run: () => openReportPanel() },
     { label: "Exportă backup", icon: "download", words: "backup export salvare fisier", run: () => exportBackup() },
-    { label: "Schimbă tema (caiet / tablă)", icon: "moon", words: "tema intunecat luminos dark light", run: () => toggleTheme() },
+    { label: "Schimbă tema (luminoasă / întunecată)", icon: "moon", words: "tema intunecat luminos dark light", run: () => toggleTheme() },
     { label: "Setări", icon: "settings", words: "setari preferinte", run: () => switchTab("tab-setari") }
 ];
 
@@ -6948,7 +7086,7 @@ function toggleTheme() {
     applyAppearanceSettings();
     refresh();
     if (ui.activeTab === "tab-setari") loadSettingsIntoUI();
-    showToast(dark ? "Tema: caiet (luminos)." : "Tema: tablă (întunecat).");
+    showToast(dark ? "Tema: luminoasă." : "Tema: întunecată.");
 }
 
 /* ==================== ADAUGĂ RAPID (+) ==================== */
@@ -7020,7 +7158,7 @@ function openMoreMenu() {
     // Safari nu pune focus pe butonul apăsat; revenim oricum la „…”.
     moreReturn = document.activeElement && document.activeElement !== document.body ? document.activeElement : $("more-btn");
     const dark = document.body.classList.contains("dark-mode");
-    setText("more-theme-label", dark ? "Temă luminoasă (caiet)" : "Temă întunecată (tablă)");
+    setText("more-theme-label", dark ? "Temă luminoasă" : "Temă întunecată");
     box.querySelector('[data-kind="theme"] use')?.setAttribute("href", dark ? "#i-sun" : "#i-moon");
     box.hidden = false;
     $("more-btn")?.setAttribute("aria-expanded", "true");
@@ -7989,6 +8127,9 @@ function bindEvents() {
         const el = event.target.closest("[data-action]");
         if (el) ACTIONS[el.dataset.action]?.(el, event);
     });
+    document.addEventListener("input", event => {
+        if (event.target.id === "set-name" || event.target.id === "set-buddy") renderBuddyPreview();
+    });
 
     document.addEventListener("keydown", event => {
         const overlay = $("action-modal");
@@ -8122,7 +8263,7 @@ function applyCursorSetting() {
 /** Cursoarele „Pix”, generate în culoarea cernelii curente (se refac la schimbarea temei sau a culorii). */
 function setPenCursors() {
     const dark = document.body.classList.contains("dark-mode");
-    const ink = (ACCENTS[state.settings.appearance.accent] || ACCENTS.blue)[dark ? "dark" : "light"];
+    const ink = (ACCENTS[state.settings.appearance.accent] || ACCENTS.violet)[dark ? "dark" : "light"];
     const edge = dark ? "#14201B" : "#FFFFFF";
     const svg = body => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'>${body}</svg>`)}")`;
     // săgeată cu vârf ascuțit (contur contrastant, ca să se vadă pe orice fundal)

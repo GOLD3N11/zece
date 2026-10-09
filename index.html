@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Zece — note, medii, ținte</title>
-    <meta name="description" content="Zece: caietul tău de note. Medii, ținte, teste și orar, într-un singur loc.">
-    <meta name="application-name" content="Zece">
-    <meta name="apple-mobile-web-app-title" content="Zece">
-    <meta name="theme-color" content="#FBFCFE" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#1E2A25" media="(prefers-color-scheme: dark)">
-    <!-- Iconița: un 10 scris de mână, încercuit cu roșu (are și variantă pentru tema întunecată) -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Cstyle%3E%0A.tile%7Bfill:%23FBFCFE;stroke:%23D5DBE5%7D.grid%7Bstroke:%23DCE3EE%7D.ink%7Bstroke:%232347C5%7D.red%7Bstroke:%23D3302A%7D%0A%40media %28prefers-color-scheme:dark%29%7B.tile%7Bfill:%231E2A25;stroke:%2333443C%7D.grid%7Bstroke:%232A3A33%7D.ink%7Bstroke:%23EEF1EA%7D.red%7Bstroke:%23FF8A80%7D%7D%0A%3C/style%3E%3Crect class=%22tile%22 x=%222%22 y=%222%22 width=%2260%22 height=%2260%22 rx=%2215%22 stroke-width=%222%22/%3E%3Cpath class=%22grid%22 d=%22M2 22H62M2 42H62M22 2V62M42 2V62%22 stroke-width=%221.2%22/%3E%3Cg fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath class=%22ink%22 d=%22M17.5 24.5 24.5 18.5V45.5%22 stroke-width=%225.8%22/%3E%3Cellipse class=%22ink%22 cx=%2239.5%22 cy=%2232%22 rx=%227.6%22 ry=%2212.6%22 transform=%22rotate%2810 39.5 32%29%22 stroke-width=%225.8%22/%3E%3Cpath class=%22red%22 d=%22M47.5 11.5C59 17 60.5 41 44 50.5 31 57.5 12.5 54 8.5 41 5 29.5 12 16.5 26 12.5 34 10.3 41.5 10.7 46.8 13.4%22 stroke-width=%224%22/%3E%3C/g%3E%3C/svg%3E">
-    <link rel="apple-touch-icon" href="data:image/png;base64,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">
+    <title>urNotes — notele tale, în stilul tău</title>
+    <meta name="description" content="urNotes: notele tale, cu personalitatea ta. Medii, ținte, teste și orar, într-un singur loc.">
+    <meta name="application-name" content="urNotes">
+    <meta name="apple-mobile-web-app-title" content="urNotes">
+    <meta name="theme-color" content="#FBF8F2" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#17132A" media="(prefers-color-scheme: dark)">
+    <!-- Iconița: post-it-ul urNotes, cu două rânduri scrise cu cerneală violet -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg transform='rotate%28-6 32 32%29'%3E%3Cpath d='M8 9H56V43L44 55H8Z' fill='%23FFC93C'/%3E%3Cpath d='M44 55V43H56Z' fill='%23E0A21C'/%3E%3Crect x='23' y='4' width='18' height='9' fill='%23FF9EC0'/%3E%3Cg fill='none' stroke='%235B3CC4' stroke-width='4.5' stroke-linecap='round'%3E%3Cpath d='M16 25Q23 19 30 25T44 25'/%3E%3Cpath d='M16 37H35'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/png;base64,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">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Recursive: drept pentru interfață, „de mână” (axa CASL) pentru note și cifre mari -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,CRSV@-15..0,300..900,0..1,0..1&display=swap">
+    <!-- Recursive pentru interfață; Shantell Sans (scris de mână, cu diacritice) pentru titluri, note și cifre mari -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,CRSV@-15..0,300..900,0..1,0..1&family=Shantell+Sans:wght@400..800&display=swap">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
     <script src="firebase-config.js" defer></script>
@@ -64,12 +64,11 @@
         <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4"/></symbol>
         <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4"/></symbol>
         <symbol id="i-logo" viewBox="0 0 64 64">
-            <rect x="2" y="2" width="60" height="60" rx="15" stroke-width="2" style="fill: var(--logo-tile); stroke: var(--logo-edge)"/>
-            <path d="M2 22H62M2 42H62M22 2V62M42 2V62" stroke-width="1.2" style="stroke: var(--logo-grid)"/>
-            <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17.5 24.5 24.5 18.5V45.5" stroke-width="5.8" style="stroke: var(--logo-ink)"/>
-                <ellipse cx="39.5" cy="32" rx="7.6" ry="12.6" transform="rotate(10 39.5 32)" stroke-width="5.8" style="stroke: var(--logo-ink)"/>
-                <path d="M47.5 11.5C59 17 60.5 41 44 50.5 31 57.5 12.5 54 8.5 41 5 29.5 12 16.5 26 12.5 34 10.3 41.5 10.7 46.8 13.4" stroke-width="4" style="stroke: var(--logo-red)"/>
+            <g transform="rotate(-6 32 32)">
+                <path d="M8 9H56V43L44 55H8Z" fill="#FFC93C"/>
+                <path d="M44 55V43H56Z" fill="#E0A21C"/>
+                <rect x="23" y="4" width="18" height="9" fill="#FF9EC0"/>
+                <g fill="none" stroke="#5B3CC4" stroke-width="4.5" stroke-linecap="round"><path d="M16 25Q23 19 30 25T44 25"/><path d="M16 37H35"/></g>
             </g>
         </symbol>
         <symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"/></symbol>
@@ -108,8 +107,8 @@
                 document.documentElement.classList.add("theme-dark");
             }
             var dark = document.body.classList.contains("dark-mode");
-            var accents = { blue: ["#2347C5", "#8DB4FF"], violet: ["#6D3FC6", "#C3A6FF"], green: ["#18794E", "#8FDCAF"], orange: ["#C2410C", "#FFB27A"] };
-            var ink = accents[s.accent] || accents.blue;
+            var accents = { violet: ["#5B3CC4", "#C3A6FF"], blue: ["#2347C5", "#8DB4FF"], pink: ["#B8336A", "#FF9EC0"], green: ["#18794E", "#8FDCAF"], orange: ["#C2410C", "#FFB27A"] };
+            var ink = accents[s.accent] || accents.violet;
             document.documentElement.style.setProperty("--accent-color", ink[dark ? 1 : 0]);
         } catch (e) {}
     </script>
@@ -122,7 +121,7 @@
     <aside class="sidebar" aria-label="Meniu">
         <div class="side-brand">
             <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-logo"/></svg>
-            <span class="side-brand-text"><b class="brand-name">Zece</b><small>caietul tău de note</small></span>
+            <span class="side-brand-text"><b class="brand-name"><span class="brand-ur">ur</span>Notes</b><small>notele tale</small></span>
         </div>
         <nav class="side-nav" aria-label="Navigație principală">
             <button type="button" class="tab-btn side-link active" data-action="nav" data-tab="tab-dashboard" aria-current="page"><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg><span>Azi</span></button>
@@ -142,7 +141,7 @@
         <div class="app-bar-inner topbar">
             <div class="topbar-brand">
                 <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-logo"/></svg>
-                <b class="brand-name">Zece</b>
+                <b class="brand-name"><span class="brand-ur">ur</span>Notes</b>
             </div>
             <button type="button" class="cmdk-trigger" data-action="cmdk" aria-label="Caută sau dă o comandă (Ctrl K)">
                 <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="cmdk-trigger-text">Caută materii, note, teste sau comenzi…</span><kbd class="cmdk-kbd">Ctrl K</kbd>
@@ -161,14 +160,18 @@
 
     <div class="app-wrapper" id="app-wrapper">
         <main class="content-body">
-            <h1 class="sr-only">Zece — caietul tău de note</h1>
+            <h1 class="sr-only">urNotes — notele tale, în stilul tău</h1>
 
             <!-- ================= DASHBOARD ================= -->
             <section id="tab-dashboard" class="tab-content active" aria-labelledby="h-dashboard">
                 <header class="azi-head">
-                    <p class="azi-date" id="azi-date"></p>
-                    <h2 id="h-dashboard">Bună ziua!</h2>
-                    <p class="azi-summary" id="azi-summary" aria-live="polite"></p>
+                    <div class="azi-head-text">
+                        <p class="azi-date" id="azi-date"></p>
+                        <h2 id="h-dashboard">Bună ziua!</h2>
+                        <p class="azi-summary" id="azi-summary" aria-live="polite"></p>
+                    </div>
+                    <!-- Mascota (post-it-ul botezat de elev): o propoziție personală, după note și calendar -->
+                    <div class="azi-buddy" id="azi-buddy"></div>
                 </header>
 
                 <!-- Conținutul cardurilor e generat în script.js (renderDashboard) -->
@@ -453,6 +456,20 @@
                 </div>
 
                 <div class="settings-grid">
+                    <div class="glass-card me-card">
+                        <h3><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg> Tu și colegul tău</h3>
+                        <div class="me-row mt-3">
+                            <div class="me-preview" id="set-buddy-preview" aria-hidden="true"></div>
+                            <div class="form-group">
+                                <label for="set-name">Numele tău</label>
+                                <input type="text" id="set-name" class="glass-input" maxlength="40" autocomplete="name" placeholder="ex: Tudor">
+                            </div>
+                            <div class="form-group">
+                                <label for="set-buddy">Numele mascotei</label>
+                                <input type="text" id="set-buddy" class="glass-input" maxlength="20" autocomplete="off" placeholder="Tiți">
+                            </div>
+                        </div>
+                    </div>
                     <div class="glass-card cloud-only account-card">
                         <h3><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg> Cont și sincronizare</h3>
                         <div id="account-settings" class="mt-3"></div>
@@ -517,15 +534,16 @@
                             <label for="set-theme">Temă</label>
                             <select id="set-theme" class="glass-select">
                                 <option value="system">Ca sistemul</option>
-                                <option value="light">Luminos (caiet)</option>
-                                <option value="dark">Întunecat (tablă)</option>
+                                <option value="light">Luminos (foaie)</option>
+                                <option value="dark">Întunecat (caiet noaptea)</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="set-accent">Culoarea cernelii</label>
                             <select id="set-accent" class="glass-select">
+                                <option value="violet">Violet urNotes</option>
                                 <option value="blue">Albastru pix</option>
-                                <option value="violet">Violet cerneală</option>
+                                <option value="pink">Roz marker</option>
                                 <option value="green">Verde</option>
                                 <option value="orange">Portocaliu</option>
                             </select>
@@ -670,7 +688,7 @@
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="sim"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span><b>Simulator</b><small>„ce-ar fi dacă” pentru notele care urmează</small></span></button>
             <button type="button" role="menuitem" class="qa-item cloud-only" data-action="more-run" data-kind="account"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg><span><b>Cont</b><small class="sync-line" data-sync-status="local"><i class="sync-dot" aria-hidden="true"></i><span class="sync-text">Doar pe acest dispozitiv</span></small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="settings"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg><span><b>Setări</b><small>ținte, calcul, aspect, module, backup</small></span></button>
-            <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="theme"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg><span><b id="more-theme-label">Temă întunecată</b><small>caiet sau tablă</small></span></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="theme"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg><span><b id="more-theme-label">Temă întunecată</b><small>foaie sau caiet noaptea</small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="setup"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg><span><b>Configurare rapidă</b><small>profil, materii, ținte</small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="backup"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span><b>Exportă backup</b><small>un fișier cu toate datele tale</small></span></button>
         </div>
@@ -688,7 +706,7 @@
     <div id="setup" class="setup" hidden>
         <div class="setup-card" role="dialog" aria-modal="true" aria-labelledby="setup-title">
             <div class="setup-head">
-                <span class="setup-brand"><svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-logo"/></svg> Zece</span>
+                <span class="setup-brand"><svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-logo"/></svg> urNotes</span>
                 <ol class="setup-steps" id="setup-steps" aria-label="Pașii configurării"></ol>
                 <button type="button" class="btn btn-text setup-skip" data-action="setup-skip">Sari peste</button>
             </div>
