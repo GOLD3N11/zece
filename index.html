@@ -449,6 +449,7 @@
                 <div class="settings-header mb-4">
                     <h2 id="h-setari"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg> Setări</h2>
                     <div class="flex-center gap-10">
+                        <button type="button" class="btn btn-glass" data-action="tour-start"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg> Tur ghidat</button>
                         <button type="button" class="btn btn-glass" data-action="setup-open"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg> Configurare rapidă</button>
                         <button type="button" class="btn btn-text text-danger" data-action="reset-settings">Restabilește implicite</button>
                         <button type="button" class="btn btn-primary" data-action="save-settings"><svg class="ico" aria-hidden="true"><use href="#i-save"/></svg> Salvează</button>
@@ -690,7 +691,27 @@
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="settings"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg><span><b>Setări</b><small>ținte, calcul, aspect, module, backup</small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="theme"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg><span><b id="more-theme-label">Temă întunecată</b><small>foaie sau caiet noaptea</small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="setup"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg><span><b>Configurare rapidă</b><small>profil, materii, ținte</small></span></button>
+            <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="tour"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span><b>Tur ghidat</b><small>cum merge urNotes, în un minut</small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="backup"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span><b>Exportă backup</b><small>un fișier cu toate datele tale</small></span></button>
+        </div>
+    </div>
+
+    <!-- Turul ghidat: reflector peste o zonă + bilețelul mascotei (conținutul e pus din script.js) -->
+    <div id="tour" class="tour" hidden>
+        <div class="tour-hole" id="tour-hole" aria-hidden="true"></div>
+        <div class="tour-card" id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-step" aria-describedby="tour-text">
+            <div class="tour-buddy" id="tour-buddy" aria-hidden="true"></div>
+            <div class="tour-main">
+                <p class="tour-step" id="tour-step"></p>
+                <p class="tour-text" id="tour-text" aria-live="polite"></p>
+                <div class="tour-actions">
+                    <button type="button" class="btn btn-text" id="tour-skip" data-action="tour-skip">Sari peste tur</button>
+                    <span class="tour-nav">
+                        <button type="button" class="btn btn-glass" id="tour-back" data-action="tour-back">Înapoi</button>
+                        <button type="button" class="btn btn-primary" id="tour-next" data-action="tour-next">Mai departe</button>
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 

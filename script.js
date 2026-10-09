@@ -1311,25 +1311,124 @@ const firstName = () => state.settings.profile.name.split(" ")[0] || "";
 const buddyName = () => state.settings.profile.buddy || DEFAULT_SETTINGS.profile.buddy;
 const formatAvg = v => Number(v).toFixed(2);
 
-const BUDDY_MOUTH = {
-    happy: "M50 72 Q60 84 70 72",
-    focused: "M52 76 H68",
-    worried: "M50 81 Q60 70 70 81"
+/*
+ * Fața mascotei, pe stări. Ochii „normali” au pupilele într-un grup separat (.buddy-pupils),
+ * ca să poată urmări cursorul; celelalte stări (râde, „au!”) își desenează singure ochii.
+ */
+const INK = "#2A1B5C";
+const EYES_OPEN = (r = 4.5) => `<g class="buddy-eyes">
+    <circle cx="44" cy="55" r="9.5" fill="#FFFFFF"/><circle cx="76" cy="55" r="9.5" fill="#FFFFFF"/>
+    <g class="buddy-pupils"><circle cx="45" cy="56" r="${r}" fill="${INK}"/><circle cx="77" cy="56" r="${r}" fill="${INK}"/></g>
+</g>`;
+const bLine = (d, w = 3.6) => `<path d="${d}" stroke="${INK}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+const BUDDY_FACES = {
+    happy: { eyes: EYES_OPEN(), mouth: bLine("M50 72 Q60 84 70 72") },
+    focused: { eyes: EYES_OPEN(), mouth: bLine("M52 76 H68") },
+    worried: { eyes: EYES_OPEN(), brows: bLine("M36 41 L50 44M84 41 L70 44", 3), mouth: bLine("M50 81 Q60 70 70 81") },
+    giggle: { eyes: bLine("M36 57 Q44 48 52 57M68 57 Q76 48 84 57", 3.4), mouth: `<path d="M47 69 Q60 90 73 69 Z" fill="${INK}"/><path d="M53 79 Q60 85 67 79" fill="#FF7AA8"/>` },
+    surprised: { eyes: EYES_OPEN(3), brows: bLine("M36 39 Q44 34 51 38M69 38 Q76 34 84 39", 3), mouth: `<ellipse cx="60" cy="78" rx="5.5" ry="7" fill="${INK}"/>` },
+    ouch: { eyes: bLine("M38 50 L50 61M50 50 L38 61M70 50 L82 61M82 50 L70 61", 3.4), mouth: bLine("M47 79 q4.3 -5 8.6 0 t8.6 0 t8.6 0", 3.2) },
+    angry: { eyes: EYES_OPEN(4), brows: bLine("M35 42 L51 48M85 42 L69 48", 3.6), mouth: bLine("M50 80 Q60 73 70 80"), hot: true }
 };
 
 function buddySVG(mood = "happy", cls = "") {
+    const f = BUDDY_FACES[mood] || BUDDY_FACES.happy;
+    const cheek = f.hot ? "#FF5C7A" : "#FF7AA8";
     return `<svg class="buddy ${cls}" viewBox="0 0 120 120" aria-hidden="true" data-mood="${mood}">
-        <g transform="rotate(-6 60 62)">
-            <path d="M14 18H106V86L88 104H14Z" fill="#FFC93C"/>
-            <path d="M88 104V86H106Z" fill="#E0A21C"/>
-            <rect x="44" y="10" width="32" height="13" fill="#FF9EC0"/>
-            <circle cx="44" cy="55" r="9.5" fill="#FFFFFF"/><circle cx="76" cy="55" r="9.5" fill="#FFFFFF"/>
-            <circle cx="46" cy="57" r="4.5" fill="#2A1B5C"/><circle cx="78" cy="57" r="4.5" fill="#2A1B5C"/>
-            ${mood === "worried" ? `<path d="M36 41 L50 44M84 41 L70 44" stroke="#2A1B5C" stroke-width="3" stroke-linecap="round"/>` : ""}
-            <ellipse cx="31" cy="70" rx="6.5" ry="3.8" fill="#FF7AA8" opacity="0.75"/><ellipse cx="89" cy="70" rx="6.5" ry="3.8" fill="#FF7AA8" opacity="0.75"/>
-            <path d="${BUDDY_MOUTH[mood] || BUDDY_MOUTH.happy}" stroke="#2A1B5C" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+        <g class="buddy-body">
+            <g transform="rotate(-6 60 62)">
+                <path d="M14 18H106V86L88 104H14Z" fill="#FFC93C"/>
+                <path d="M88 104V86H106Z" fill="#E0A21C"/>
+                <rect x="44" y="10" width="32" height="13" fill="#FF9EC0"/>
+                ${f.eyes}${f.brows || ""}
+                <ellipse cx="31" cy="70" rx="6.5" ry="3.8" fill="${cheek}" opacity="0.75"/><ellipse cx="89" cy="70" rx="6.5" ry="3.8" fill="${cheek}" opacity="0.75"/>
+                ${f.mouth}
+            </g>
         </g>
     </svg>`;
+}
+
+/*
+ * Mascota urmărește cursorul: pupilele se uită spre el și corpul se apleacă puțin.
+ * O singură ascultare de „pointermove” + requestAnimationFrame, pentru toate mascotele de pe ecran.
+ */
+const buddyLook = { x: -1, y: -1, frame: 0 };
+function initBuddyLook() {
+    const calm = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    const update = () => {
+        buddyLook.frame = 0;
+        document.querySelectorAll(".buddy").forEach(svg => {
+            const r = svg.getBoundingClientRect();
+            if (!r.width || r.bottom < 0 || r.top > innerHeight) return;
+            const dx = buddyLook.x - (r.left + r.width / 2);
+            const dy = buddyLook.y - (r.top + r.height * 0.45);
+            const dist = Math.hypot(dx, dy) || 1;
+            const reach = Math.min(1, dist / 60) * 3.6; // aproape de el, privirea se adună spre centru
+            const pupils = svg.querySelector(".buddy-pupils");
+            if (pupils) pupils.style.transform = `translate(${(dx / dist * reach).toFixed(2)}px, ${(dy / dist * reach).toFixed(2)}px)`;
+            const body = svg.querySelector(".buddy-body");
+            if (body && !calm) body.style.transform = `rotate(${Math.max(-7, Math.min(7, dx / 70)).toFixed(2)}deg)`;
+        });
+    };
+    const track = event => {
+        buddyLook.x = event.clientX;
+        buddyLook.y = event.clientY;
+        if (!buddyLook.frame) buddyLook.frame = requestAnimationFrame(update);
+    };
+    document.addEventListener("pointermove", track, { passive: true });
+    document.addEventListener("pointerdown", track, { passive: true });
+}
+
+/* Clic pe mascotă: întâi râde (gâdilat), apoi se miră, apoi „au!”, apoi se supără… și până la urmă face pace. */
+const BUDDY_POKES = [
+    { mood: "giggle", say: () => "Hihi, mă gâdili!", pow: "hihi" },
+    { mood: "giggle", say: () => "Hahaha, gata, gata!", pow: "haha" },
+    { mood: "surprised", say: name => `Hei! Ce faci${name ? `, ${name}` : ""}?`, pow: "Pac!" },
+    { mood: "ouch", say: () => "Au! Ăsta a fost un pumn?!", pow: "Poc!" },
+    { mood: "angry", say: () => "Gata, m-am supărat pe tine.", pow: "Bum!" },
+    { mood: "angry", say: () => "Hmpf. Nu mai vorbesc cu tine.", pow: "Poc!" },
+    { mood: "ouch", say: () => "Văd steluțe… Facem pace?", pow: "Bum!" },
+    { mood: "happy", say: name => `Bine, pace${name ? `, ${name}` : ""}. Hai înapoi la note!`, pow: "pace" }
+];
+const buddyPoke = { n: 0, last: 0, timer: 0, rest: null };
+
+function pokeBuddy(btn, event) {
+    const box = btn.closest(".azi-buddy");
+    if (!box) return;
+    const now = Date.now();
+    buddyPoke.n = now - buddyPoke.last < 4000 ? (buddyPoke.n % BUDDY_POKES.length) + 1 : 1;
+    buddyPoke.last = now;
+    const r = BUDDY_POKES[buddyPoke.n - 1];
+    btn.innerHTML = buddySVG(r.mood);
+    const text = box.querySelector(".buddy-bubble span");
+    if (text) text.textContent = r.say(firstName());
+
+    // Lovitura: se turtește și sare în partea opusă clicului; un „Poc!” apare unde ai dat clic.
+    const rect = btn.getBoundingClientRect();
+    const fromLeft = (event?.clientX ?? rect.left) < rect.left + rect.width / 2;
+    btn.style.setProperty("--kick", `${fromLeft ? 10 : -10}px`);
+    btn.style.setProperty("--kick-rot", `${fromLeft ? 8 : -8}deg`);
+    btn.classList.remove("is-hit");
+    void btn.offsetWidth; // repornește animația
+    btn.classList.add("is-hit");
+    const pow = document.createElement("span");
+    pow.className = "buddy-pow";
+    pow.textContent = r.pow;
+    pow.setAttribute("aria-hidden", "true");
+    const boxRect = box.getBoundingClientRect();
+    const x = event?.clientX ? event.clientX - boxRect.left : rect.left - boxRect.left + rect.width / 2;
+    const y = event?.clientY ? event.clientY - boxRect.top : rect.top - boxRect.top + 10;
+    pow.style.left = `${x}px`;
+    pow.style.top = `${y}px`;
+    box.appendChild(pow);
+    setTimeout(() => pow.remove(), 700);
+
+    // După câteva secunde de liniște, revine la mesajul zilei.
+    clearTimeout(buddyPoke.timer);
+    buddyPoke.timer = setTimeout(() => {
+        buddyPoke.n = 0;
+        if (buddyPoke.rest && document.contains(box)) paintBuddy(box, buddyPoke.rest);
+    }, 5000);
 }
 
 /** Ce simte și ce îi spune mascota elevului azi. */
@@ -1366,10 +1465,16 @@ function buddyState({ today }, { tests }) {
 function renderBuddy(days, todo) {
     const box = $("azi-buddy");
     if (!box) return;
-    const { mood, text } = buddyState(days, todo);
+    buddyPoke.rest = buddyState(days, todo);
+    clearTimeout(buddyPoke.timer);
+    buddyPoke.n = 0;
+    paintBuddy(box, buddyPoke.rest);
+}
+
+function paintBuddy(box, { mood, text }) {
     box.innerHTML = `
-        ${buddySVG(mood)}
-        <p class="buddy-bubble"><b class="buddy-name">${escapeHTML(buddyName())}</b><span>${escapeHTML(text)}</span></p>`;
+        <button type="button" class="buddy-poke" data-action="buddy-poke" aria-label="${escapeHTML(`Gâdilă-l pe ${buddyName()}`)}">${buddySVG(mood)}</button>
+        <p class="buddy-bubble" aria-live="polite"><b class="buddy-name">${escapeHTML(buddyName())}</b><span>${escapeHTML(text)}</span></p>`;
 }
 
 /** Evenimente trecute nefinalizate (ultimele 45 de zile); dintr-o serie, doar ultima apariție (+ câte mai vechi). */
@@ -4779,8 +4884,165 @@ function finishSetup(withTimetable) {
     ui.home.day = null;
     switchTab("tab-dashboard");
     refresh();
-    if (withTimetable && Object.keys(state.subjects).length) openTimetableModal();
-    else showToast(`✅ Gata! ${added.length ? `Ai ${plural(Object.keys(state.subjects).length, "materie", "materii")} în catalog.` : "Setările au fost salvate."}`);
+    if (withTimetable && Object.keys(state.subjects).length) {
+        ui.tourAfterModal = true; // turul vine după ce închide orarul
+        openTimetableModal();
+    } else {
+        showToast(`✅ Gata! ${added.length ? `Ai ${plural(Object.keys(state.subjects).length, "materie", "materii")} în catalog.` : "Setările au fost salvate."}`);
+        setTimeout(maybeStartTour, 400);
+    }
+}
+
+/* ==================== TUR GHIDAT (pentru cei noi) ==================== */
+/*
+ * Mascota îl plimbă pe elev prin aplicație: un „reflector” peste fiecare zonă importantă
+ * și un bilețel cu explicația. Pornește singur o dată, după configurare; se poate relua din Setări,
+ * din „Mai mult” sau din căutare. Pașii ale căror ținte nu sunt pe ecran (ex. pe telefon) se sar.
+ */
+const TOUR_DONE_KEY = "pro_tour_done_v4";
+const tour = { open: false, i: 0, steps: [], returnFocus: null };
+const isPhoneLayout = () => Boolean(window.matchMedia?.("(max-width: 900px)").matches);
+const navSel = tab => isPhoneLayout() ? `.mobile-nav-btn[data-tab="${tab}"]` : `.side-link[data-tab="${tab}"]`;
+
+function tourSteps() {
+    const name = firstName();
+    const hey = name ? `, ${name}` : "";
+    const phone = isPhoneLayout();
+    return [
+        { text: `Salut${hey}! Eu sunt ${buddyName()}, colegul tău de bancă. În mai puțin de un minut îți arăt cum merge urNotes.` },
+        { target: ".azi-head-text", text: "Asta e pagina Azi. În fiecare zi găsești aici ce ore ai, ce teste urmează și ce note mai aștepți." },
+        { target: phone ? ".mobile-add" : "#quick-add-btn", text: `Cu „Adaugă” pui o notă, un test, o temă sau o materie nouă.${phone ? "" : " Merge și tasta N."}` },
+        { target: navSel("tab-catalog"), text: "În Catalog ai toate materiile, cu notele și mediile lor. Deschide o materie ca să vezi ce notă îți trebuie ca să-ți atingi ținta." },
+        { target: navSel("tab-calendar"), text: "Calendarul ține testele, tezele și temele. Când primești nota, o treci direct din calendar." },
+        { target: navSel("tab-statistici"), text: "La Statistici vezi cum evoluează media: pe materii, pe module și pe zile ale săptămânii." },
+        phone
+            ? { target: "#more-btn", text: "În „Mai mult” găsești Simulatorul („ce-ar fi dacă aș lua un 9?”), contul tău și Setările." }
+            : { target: navSel("tab-simulator"), text: "Simulatorul: „ce-ar fi dacă aș lua un 9 la mate?”. Încerci note fără să-ți atingi media reală." },
+        { target: ".cmdk-trigger", text: `Aici cauți orice: materii, note, teste sau comenzi rapide.${phone ? "" : " Scurtătură: Ctrl K sau /."}` },
+        { target: "#notif-btn", text: "Clopoțelul te anunță când o materie intră în risc sau când un test își așteaptă nota." },
+        { target: phone ? "#tour-none" : "#account-chip", text: cloud.user ? "Ești în cont: notele se salvează singure și apar pe orice telefon sau calculator." : "Intră în cont ca notele să te urmeze pe orice telefon sau calculator." },
+        { target: "#azi-buddy", text: "Și eu stau aici, pe pagina Azi: îți spun ce contează și mă bucur de fiecare 10. Mă poți gâdila cu un clic… dar nu prea tare! Numele noastre le schimbi din Setări." },
+        { text: `Gata${hey}! Poți relua turul oricând din Setări. Spor la note mari!`, last: true }
+    ];
+}
+
+const tourDone = () => { try { return localStorage.getItem(TOUR_DONE_KEY) === "1"; } catch (_) { return true; } };
+function maybeStartTour() {
+    if (!tourDone()) startTour();
+}
+
+function startTour() {
+    if (!$("tour") || tour.open) return;
+    if (!$("setup").hidden || ($("auth") && !$("auth").hidden)) return;
+    closeActionModal();
+    closeQuickAdd({ restoreFocus: false });
+    closeMoreMenu({ restoreFocus: false });
+    closeCmdk({ restoreFocus: false });
+    closeNotifPanel({ restoreFocus: false });
+    if (!$("action-modal").hidden) return; // o întrebare care cere răspuns (ex. sincronizarea) are prioritate
+    switchTab("tab-dashboard");
+    window.scrollTo(0, 0);
+    tour.open = true;
+    tour.steps = tourSteps();
+    tour.returnFocus = document.activeElement;
+    $("tour").hidden = false;
+    document.body.classList.add("tour-open");
+    window.addEventListener("resize", placeTour);
+    window.addEventListener("scroll", placeTour, { passive: true });
+    showTourStep(0, 1);
+}
+
+function endTour() {
+    if (!tour.open) return;
+    tour.open = false;
+    $("tour").hidden = true;
+    document.body.classList.remove("tour-open");
+    window.removeEventListener("resize", placeTour);
+    window.removeEventListener("scroll", placeTour);
+    try { localStorage.setItem(TOUR_DONE_KEY, "1"); } catch (_) { /* fără stocare: tot nu insistăm */ }
+    const back = tour.returnFocus;
+    tour.returnFocus = null;
+    if (back && document.contains(back) && back !== document.body) back.focus();
+}
+
+/** Elementul unui pas, doar dacă se vede pe ecran. */
+function tourTarget(step) {
+    if (!step?.target) return null;
+    const el = document.querySelector(step.target);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden" ? el : null;
+}
+const tourVisible = (step, k, all) => k === 0 || k === all.length - 1 || Boolean(tourTarget(step));
+
+/** Arată pasul `i`; dacă ținta lui nu e pe ecran, merge mai departe în direcția `dir`. */
+function showTourStep(i, dir) {
+    const steps = tour.steps;
+    while (i > 0 && i < steps.length - 1 && !tourTarget(steps[i])) i += dir;
+    tour.i = Math.max(0, Math.min(steps.length - 1, i));
+    const step = steps[tour.i];
+    const el = tourTarget(step);
+    if (el) {
+        const r = el.getBoundingClientRect();
+        if (r.top < 70 || r.bottom > innerHeight - 70) el.scrollIntoView({ block: "center" });
+    }
+    const visible = steps.map(tourVisible);
+    const pos = visible.slice(0, tour.i + 1).filter(Boolean).length;
+    $("tour-buddy").innerHTML = buddySVG(step.last ? "giggle" : tour.i === 0 ? "happy" : "focused");
+    $("tour-step").textContent = `${buddyName()} · ${pos} din ${visible.filter(Boolean).length}`;
+    $("tour-text").textContent = step.text;
+    $("tour-back").hidden = tour.i === 0;
+    $("tour-next").textContent = step.last ? "Hai să începem!" : tour.i === 0 ? "Arată-mi" : "Mai departe";
+    $("tour-skip").hidden = Boolean(step.last);
+    placeTour();
+    $("tour-next").focus({ preventScroll: true });
+}
+
+/** Reflectorul peste țintă și bilețelul lângă ea (dedesubt dacă încape, altfel deasupra). */
+function placeTour() {
+    if (!tour.open) return;
+    const el = tourTarget(tour.steps[tour.i]);
+    const hole = $("tour-hole");
+    const card = $("tour-card");
+    const pad = 8;
+    const vw = document.documentElement.clientWidth || innerWidth;
+    const vh = innerHeight;
+    $("tour").classList.toggle("is-centered", !el);
+    const cw = card.offsetWidth;
+    const ch = card.offsetHeight;
+    if (!el) {
+        hole.hidden = true;
+        card.style.left = `${Math.max(12, (vw - cw) / 2)}px`;
+        card.style.top = `${Math.max(12, (vh - ch) / 2)}px`;
+        return;
+    }
+    const r = el.getBoundingClientRect();
+    hole.hidden = false;
+    Object.assign(hole.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+    const gap = 14;
+    let top = r.bottom + pad + gap;
+    if (top + ch > vh - 12) top = r.top - pad - gap - ch;
+    if (top < 12) top = Math.max(12, vh - ch - 12); // nu încape nici sus, nici jos: îl ținem pe ecran
+    const left = Math.max(12, Math.min(vw - cw - 12, r.left + r.width / 2 - cw / 2));
+    card.style.left = `${left}px`;
+    card.style.top = `${top}px`;
+}
+
+const TOUR_ACTIONS = {
+    "tour-start": () => startTour(),
+    "tour-next": () => tour.i >= tour.steps.length - 1 ? endTour() : showTourStep(tour.i + 1, 1),
+    "tour-back": () => showTourStep(tour.i - 1, -1),
+    "tour-skip": () => endTour(),
+    "buddy-poke": (el, event) => pokeBuddy(el, event)
+};
+
+/** Tastele cât timp e deschis turul: Escape îl închide, săgețile schimbă pasul, Tab rămâne în bilețel. */
+function handleTourKey(event) {
+    const k = event.key;
+    if (k === "Escape") { event.preventDefault(); endTour(); return; }
+    if (k === "ArrowRight") { event.preventDefault(); TOUR_ACTIONS["tour-next"](); return; }
+    if (k === "ArrowLeft" && tour.i > 0) { event.preventDefault(); TOUR_ACTIONS["tour-back"](); return; }
+    if (k === "Tab") trapFocusIn($("tour-card"), event);
 }
 
 const SETUP_ACTIONS = {
@@ -4788,6 +5050,7 @@ const SETUP_ACTIONS = {
     "setup-skip": () => {
         markSetupDone();
         closeSetup();
+        setTimeout(maybeStartTour, 300);
         showToast("Poți porni configurarea oricând din Setări sau din căutare (Ctrl+K).");
     },
     "setup-next": () => setupNext(),
@@ -4968,6 +5231,8 @@ function initCloud() {
     };
     if (window.ZeceCloud !== undefined) attach(window.ZeceCloud);
     window.addEventListener("zece-cloud", event => attach(event.detail));
+    // Plasă de siguranță: dacă modulul de cont nu se încarcă deloc, aplicația pornește local după câteva secunde.
+    setTimeout(() => { if (cloud.api === undefined) attach(null); }, 8000);
     window.addEventListener("online", () => {
         if (!cloud.user) return;
         if (cloud.needsReconcile) reconcileWithCloud();
@@ -5003,6 +5268,12 @@ async function onCloudUser(user) {
         state.settings.profile.name = cleanName(user.name, 40);
         refresh();
         loadSettingsIntoUI();
+        // Configurarea deschisă deja: numele apare și acolo
+        const input = $("setup-me-name");
+        if (input && !input.value) {
+            input.value = state.settings.profile.name;
+            $("setup-buddy").innerHTML = setupBuddyHTML();
+        }
     }
     if (cloud.user?.uid === user.uid) cloud.unwatch = cloud.api.watch(onRemoteChange);
 }
@@ -5049,7 +5320,8 @@ async function reconcileOnce() {
             }
         }
         await uploadNow();
-        if (!hasLocalData() && shouldOfferSetup()) openSetup(0);
+        // Cont nou și caiet gol: configurarea apare mereu (chiar dacă pe acest browser a mai fost închisă cândva).
+        if (!hasLocalData() && cloud.user?.uid === user.uid) openSetup(0);
         return;
     }
     if (dataFingerprint(remote.json) === dataFingerprint(localJSON)) {
@@ -5588,6 +5860,10 @@ function closeActionModal() {
     const back = ui.modalReturnFocus;
     ui.modalReturnFocus = null;
     if (back && document.contains(back)) back.focus();
+    if (ui.tourAfterModal) {
+        ui.tourAfterModal = false;
+        setTimeout(maybeStartTour, 300);
+    }
 }
 
 function trapModalFocus(event) {
@@ -6952,7 +7228,8 @@ const CMDK_ACTIONS = [
     { label: "Raport pentru printare", icon: "printer", words: "raport print pdf", run: () => openReportPanel() },
     { label: "Exportă backup", icon: "download", words: "backup export salvare fisier", run: () => exportBackup() },
     { label: "Schimbă tema (luminoasă / întunecată)", icon: "moon", words: "tema intunecat luminos dark light", run: () => toggleTheme() },
-    { label: "Setări", icon: "settings", words: "setari preferinte", run: () => switchTab("tab-setari") }
+    { label: "Setări", icon: "settings", words: "setari preferinte", run: () => switchTab("tab-setari") },
+    { label: "Turul aplicației", icon: "sparkles", words: "tur ghid tutorial ajutor cum merge", run: () => startTour() }
 ];
 
 const cmdk = { items: [], active: 0, returnFocus: null };
@@ -7147,7 +7424,8 @@ const MORE_ACTIONS = {
     theme: () => toggleTheme(),
     setup: () => openSetup(0),
     backup: () => exportBackup(),
-    account: () => openAccountPanel()
+    account: () => openAccountPanel(),
+    tour: () => startTour()
 };
 
 function openMoreMenu() {
@@ -7238,6 +7516,11 @@ function bindShellEvents() {
         // Configurarea ocupă tot ecranul: fără scurtături, focusul rămâne în ea
         if (!$("setup").hidden) {
             if ($("action-modal").hidden) trapFocusIn($("setup"), event);
+            return;
+        }
+        // Turul ghidat: tastele lui, nimic altceva
+        if (tour.open) {
+            handleTourKey(event);
             return;
         }
         // La fel ecranul de autentificare (Escape îl închide doar dacă elevul a ales deja cum folosește aplicația)
@@ -8119,7 +8402,8 @@ const ACTIONS = {
     "notif-close": () => closeNotifPanel(),
     "modal-cancel": () => closeActionModal(),
     "none": () => {},
-    ...ACCOUNT_ACTIONS
+    ...ACCOUNT_ACTIONS,
+    ...TOUR_ACTIONS
 };
 
 function bindEvents() {
@@ -8206,6 +8490,7 @@ function init() {
     applyCursorSetting();
     bindSetupEvents();
     bindAuthEvents();
+    initBuddyLook();
     initCloud();
     // Cu conturi, configurarea vine după alegerea de pe ecranul de autentificare.
     if (!cloud.configured && shouldOfferSetup()) openSetup(0);
