@@ -4410,30 +4410,102 @@ function printStatsReport() {
 const SETUP_DONE_KEY = "pro_setup_done_v4";
 const SETUP_STEPS = ["Profil", "Materii", "Ținte", "Orar"];
 /*
- * Materiile propuse depind de profil ȘI de clasă:
- *   – clasa a IX-a: planul-cadru nou (OMEC nr. 4350/2025), aplicat din 2026–2027;
- *   – clasele X–XII: planurile în vigoare (din 2009) — ex. la mate-info, în XI–XII: informatică 4 ore, chimie 1 oră,
- *     fără educație artistică și TIC; la filologie, în XI–XII: fără matematică, limba modernă 2 cu 3 ore, „Științe ale naturii”.
- * Disciplina socio-umană se schimbă pe ani (psihologie în X, economie în XI, filosofie în XII).
- * Toate orele sunt orientative și se pot corecta în pasul 2.
+ * Materiile propuse urmează planurile-cadru oficiale, după profil ȘI clasă (verificate în octombrie 2026):
+ *   – clasa a IX-a: planul-cadru nou, OMEC 4350/2025 (modificat prin OMEC 4152/2026; intensiv informatică: OMEC 6873/2025),
+ *     aplicat din 2026–2027 doar la a IX-a;
+ *   – clasele X–XII: planurile din 2009 (OMECI 3410/2009, filiera teoretică și vocațională; pedagogic OMECTS 5347/2011;
+ *     tehnologic OMECTS 3081/2010 și OMECI 3412/2009), cu anexa pentru XI–XII înlocuită prin OME 3667/2023 și OME 7723/2024
+ *     (Istoria evreilor. Holocaustul în a XI-a, Istoria comunismului din România în a XII-a);
+ *   – gimnaziul: OMENCS 3590/2016, anexa 2.
+ * La vocațional și tehnologic, împărțirea orelor de specialitate pe discipline diferă între școli: e orientativă.
+ * Orele de CDȘ / opționale nu apar (le alege fiecare școală). Totul se poate corecta în pasul 2.
  */
-const SOCIO = { 9: "Științe socio-umane", 10: "Psihologie", 11: "Economie", 12: "Filosofie" };
-const HOLOCAUST = ["Istoria evreilor. Holocaustul", 1, { off: true, hint: "în a XI-a sau a XII-a, după școală" }];
 const LICEU = [9, 10, 11, 12];
 const ROMAN = { 5: "V", 6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X", 11: "XI", 12: "XII" };
+const LM2 = ["Limba franceză", { hint: "limba modernă 2: redenumește dacă faci alta" }];
 
-/** Trunchiul comun pentru profilurile vocaționale și tehnologice; `drop` scoate ce înlocuiesc materiile de specialitate. */
-function trunchi(cls, { mate = 2, fiz = 1, chim = 1, bio = 1, drop = [] } = {}) {
-    const upper = cls >= 11;
-    return [
-        ["Limba și literatura română", 3], ["Limba engleză", 2], ["Limba franceză", cls >= 10 ? 2 : 1],
-        ["Matematică", mate], ["Fizică", fiz], ["Chimie", chim], ["Biologie", bio],
-        ["Istorie", 1], ["Geografie", 1], [SOCIO[cls], 1], ["Religie", 1],
-        ...(upper ? [] : [["Educație artistică", 1], ["TIC", 1]]),
-        ["Educație fizică", 1],
-        ...(upper ? [HOLOCAUST] : [])
-    ].filter(([name]) => !drop.includes(name));
+/**
+ * Pornește de la o listă de bază [nume, ore], schimbă orele (`set`), scoate materii (`drop`)
+ * și adaugă materiile de specialitate (`add`). Orele 0 din `set` scot materia.
+ */
+function plan(base, { set = {}, drop = [], add = [] } = {}) {
+    const rows = base
+        .filter(([name]) => !drop.includes(name))
+        .map(([name, ore, opt]) => [name, name in set ? set[name] : ore, opt])
+        .filter(([, ore]) => ore > 0);
+    return [...rows, ...add].map(([name, ore, opt]) => opt ? [name, ore, opt] : [name, ore]);
 }
+const withLm2 = (rows, ore) => rows.map(r => r[0] === LM2[0] ? [r[0], ore ?? r[1], LM2[1]] : r);
+
+/* ---------- Clasa a IX-a: planul-cadru nou (OMEC 4350/2025, modificat prin OMEC 4152/2026), din 2026–2027 ---------- */
+// Trunchiul comun, la fel pentru toate profilurile (19 ore); orele de „curriculum de specialitate” se adaugă peste el.
+const TC_IX = [
+    ["Limba și literatura română", 3], ["Limba engleză", 2], [LM2[0], 1],
+    ["Matematică", 2], ["Fizică", 1], ["Chimie", 1], ["Biologie", 1],
+    ["Istorie", 1], ["Geografie", 1], ["Logică", 1], ["Religie", 1],
+    ["Educație artistică", 1, { hint: "educație muzicală și vizuală, câte o jumătate de oră" }],
+    ["Educație fizică și sport", 1], ["TIC", 1], ["Dezvoltare personală și consiliere pentru carieră", 1]
+];
+const ix = opts => withLm2(plan(TC_IX, opts));
+
+/* ---------- Clasele X–XII: planurile din 2009 (OMECI 3410/2009), cu modificările din 2023 și 2024 ---------- */
+// Clasa a X-a (ciclul inferior al liceului, anexa 1 — neschimbată din 2009). Profilul real și cel umanist au câte un tabel comun.
+const X_REAL = [
+    ["Limba și literatura română", 3], ["Limba engleză", 2], [LM2[0], 2],
+    ["Matematică", 4], ["Fizică", 3], ["Chimie", 2], ["Biologie", 2], ["Informatică", 1],
+    ["Istorie", 1], ["Geografie", 1], ["Psihologie", 1], ["Religie", 1],
+    ["Educație artistică", 1, { hint: "muzică și arte vizuale, alternativ" }], ["Educație fizică", 2], ["TIC", 1], ["Educație antreprenorială", 1]
+];
+const X_UMAN = [
+    ["Limba și literatura română", 4], ["Limba engleză", 3], [LM2[0], 2], ["Limba latină", 1],
+    ["Matematică", 2], ["Fizică", 2], ["Chimie", 1], ["Biologie", 1],
+    ["Istorie", 3], ["Geografie", 2], ["Psihologie", 2], ["Religie", 1],
+    ["Educație artistică", 1, { hint: "muzică și arte vizuale, alternativ" }], ["Educație fizică", 1], ["TIC", 1], ["Educație antreprenorială", 1]
+];
+// Trunchiul comun vocațional în a X-a (19 ore), peste care vin disciplinele artistice / sportive / teologice.
+const X_VOC = [
+    ["Limba și literatura română", 3], ["Limba engleză", 2], [LM2[0], 1],
+    ["Matematică", 2], ["Fizică", 2], ["Chimie", 1], ["Biologie", 1],
+    ["Istorie", 1], ["Geografie", 1], ["Psihologie", 1], ["Religie", 1],
+    ["Educație fizică", 1], ["TIC", 1], ["Educație antreprenorială", 1]
+];
+// Clasele XI–XII (ciclul superior, anexa 2 înlocuită prin OME 3667/2023 și OME 7723/2024):
+// în a XI-a „Istoria evreilor. Holocaustul”, în a XII-a „Istoria comunismului din România” — câte o oră, obligatorii.
+const XI_XII_ISTORIE = cls => cls === 11 ? ["Istoria evreilor. Holocaustul", 1] : ["Istoria comunismului din România", 1];
+const SOCIO_SUP = cls => cls === 11 ? "Economie" : "Filosofie";
+const SUP_COMMON = cls => [
+    ["Limba și literatura română", 3], ["Limba engleză", 2], [LM2[0], 2],
+    ["Istorie", 1], XI_XII_ISTORIE(cls), ["Geografie", 1], [SOCIO_SUP(cls), 1], ["Religie", 1]
+];
+const sup = (cls, opts) => withLm2(plan(SUP_COMMON(cls), opts));
+
+/* ---------- Clasele X–XII, filiera tehnologică (OMECTS 3081/2010; OMECI 3412/2009 cu OME 3664/2023 și 7724/2024) ---------- */
+function tehnologicSup(cls, kind) {
+    const servicii = kind === "servicii";
+    const resurse = kind === "resurse";
+    return withLm2([
+        ["Limba și literatura română", 3], ["Limba engleză", 2], [LM2[0], 2],
+        ["Matematică", 3],
+        ...(servicii ? [] : resurse
+            ? [["Chimie", cls === 11 ? 2 : 1], ["Biologie", cls === 11 ? 1 : 2]]
+            : [["Fizică", 2], ["Chimie", 1]]),
+        ["Istorie", servicii && cls === 11 ? 2 : 1], XI_XII_ISTORIE(cls), ["Geografie", servicii && cls === 12 ? 2 : 1],
+        [cls === 11 ? "Economie" : "Economie aplicată", servicii ? 2 : 1], ["Religie", 1], ["Educație fizică", 1], ["TIC", 1],
+        ["Cultură de specialitate", 6, { hint: "modulele calificării tale; redenumește-le după orar" }],
+        ["Pregătire practică", servicii && cls === 11 ? 6 : 5, { hint: "plus stagiile de practică de la sfârșitul anului" }]
+    ]);
+}
+const TEHNOLOGIC_IX = [
+    ["Pregătire teoretică de specialitate", 4, { hint: "modulele calificării tale; redenumește-le după orar" }],
+    ["Laborator tehnologic și instruire practică", 6, { hint: "plus 5 săptămâni de stagiu de practică pe an" }]
+];
+const TEHNOLOGIC_X = kind => withLm2(plan(X_VOC, {
+    set: { "Matematică": kind === "servicii" ? 2 : 3, "Fizică": kind === "servicii" ? 1 : 2, [LM2[0]]: 2 },
+    add: [
+        ["Pregătire de specialitate", 6, { hint: "modulele calificării tale; redenumește-le după orar" }],
+        ["Instruire practică", 5, { hint: "plus 3 săptămâni de stagiu de practică pe an" }]
+    ]
+}));
 
 const SETUP_GROUPS = [
     { id: "teoretic", label: "Liceu teoretic" },
@@ -4445,126 +4517,229 @@ const SETUP_GROUPS = [
 const SETUP_PROFILES = {
     "mate-info": {
         group: "teoretic", label: "Matematică-informatică", hint: "profil real", classes: LICEU,
-        subjects: ({ cls }) => cls === 9
-            ? [["Limba și literatura română", 3], ["Limba engleză", 2], ["Limba franceză", 1], ["Matematică", 4], ["Informatică", 2], ["Fizică", 3], ["Chimie", 2], ["Biologie", 1],
-                ["Istorie", 1], ["Geografie", 1], [SOCIO[9], 1], ["Religie", 1], ["Educație artistică", 1], ["Educație fizică", 1], ["TIC", 1]]
-            : cls === 10
-                ? [["Limba și literatura română", 3], ["Limba engleză", 2], ["Limba franceză", 2], ["Matematică", 4], ["Informatică", 2], ["Fizică", 2], ["Chimie", 2], ["Biologie", 1],
-                    ["Istorie", 1], ["Geografie", 1], [SOCIO[10], 1], ["Religie", 1], ["Educație artistică", 1], ["Educație fizică", 1], ["TIC", 1]]
-                : [["Limba și literatura română", 3], ["Limba engleză", 2], ["Limba franceză", 2], ["Matematică", 4], ["Informatică", 4], ["Fizică", 3], ["Chimie", 1], ["Biologie", 1],
-                    ["Istorie", 1], ["Geografie", 1], [SOCIO[cls], 1], ["Religie", 1], ["Educație fizică", 1], HOLOCAUST]
+        variantLabel: "Tipul clasei",
+        variants: [{ id: "normal", label: "Normală" }, { id: "intensiv", label: "Intensiv informatică" }],
+        subjects: ({ cls, variant }) => {
+            const intensiv = variant?.id === "intensiv";
+            if (cls === 9) return ix({ set: { "Matematică": 4, "Fizică": 3, "Chimie": 2 }, add: [["Informatică", intensiv ? 4 : 2]] });
+            if (cls === 10) return withLm2(plan(X_REAL, { set: { "Informatică": intensiv ? 4 : 1 } }));
+            return sup(cls, { add: [["Matematică", 4], ["Fizică", 3], ["Chimie", 1], ["Biologie", 1], ["Informatică", intensiv ? 7 : 4], ["Educație fizică", 1]] });
+        }
     },
     "stiinte": {
         group: "teoretic", label: "Științe ale naturii", hint: "profil real", classes: LICEU,
-        subjects: ({ cls }) => cls === 9
-            ? [["Limba și literatura română", 3], ["Limba engleză", 2], ["Limba franceză", 1], ["Matematică", 3], ["Fizică", 3], ["Chimie", 3], ["Biologie", 3], ["Informatică", 1],
-                ["Istorie", 1], ["Geografie", 1], [SOCIO[9], 1], ["Religie", 1], ["Educație artistică", 1], ["Educație fizică", 1], ["TIC", 1]]
-            : cls === 10
-                ? [["Limba și literatura română", 3], ["Limba engleză", 2], ["Limba franceză", 2], ["Matematică", 3], ["Fizică", 2], ["Chimie", 2], ["Biologie", 2], ["Informatică", 1],
-                    ["Istorie", 1], ["Geografie", 1], [SOCIO[10], 1], ["Religie", 1], ["Educație artistică", 1], ["Educație fizică", 1], ["TIC", 1]]
-                : [["Limba și literatura română", 3], ["Limba engleză", 2], ["Limba franceză", 2], ["Matematică", 3], ["Fizică", 2], ["Chimie", 3], ["Biologie", 3], ["Informatică", 1],
-                    ["Istorie", 1], ["Geografie", 1], [SOCIO[cls], 1], ["Religie", 1], ["Educație fizică", 1], HOLOCAUST]
+        subjects: ({ cls }) => {
+            if (cls === 9) return ix({ set: { "Matematică": 3, "Fizică": 3, "Chimie": 3, "Biologie": 3 }, add: [["Informatică", 1]] });
+            if (cls === 10) return withLm2(plan(X_REAL));
+            return sup(cls, { add: [["Matematică", 3], ["Fizică", 3], ["Chimie", 2], ["Biologie", 2], ["TIC", cls === 11 ? 2 : 1], ["Educație fizică", 1]] });
+        }
     },
     "filologie": {
         group: "teoretic", label: "Filologie", hint: "profil umanist", classes: LICEU,
-        subjects: ({ cls }) => cls === 9
-            ? [["Limba și literatura română", 5], ["Limba engleză", 3], ["Limba franceză", 2], ["Limba latină", 1], ["Matematică", 2], ["Fizică", 1], ["Chimie", 1], ["Biologie", 1],
-                ["Istorie", 2], ["Geografie", 1], [SOCIO[9], 2], ["Religie", 1], ["Educație artistică", 1], ["Educație fizică", 1], ["TIC", 1]]
-            : cls === 10
-                ? [["Limba și literatura română", 4], ["Limba engleză", 3], ["Limba franceză", 2], ["Limba latină", 1], ["Matematică", 2], ["Fizică", 2], ["Chimie", 1], ["Biologie", 1],
-                    ["Istorie", 3], ["Geografie", 2], [SOCIO[10], 2], ["Religie", 1], ["Educație artistică", 1], ["Educație fizică", 1], ["TIC", 1]]
-                : [["Limba și literatura română", 4], ["Limba engleză", 3], ["Limba franceză", 3], ["Limba latină", 1], ["Literatură universală", 1], ["Științe ale naturii", 1],
-                    ["Istorie", 2], ["Geografie", 1], ...(cls === 11 ? [["Economie", 1], ["Sociologie", 1]] : [["Filosofie", 1], ["Științe socio-umane", 1]]),
-                    ["Religie", 1], ["Educație artistică", 1], ["Educație fizică", 1], HOLOCAUST]
+        subjects: ({ cls }) => {
+            if (cls === 9) return ix({ set: { "Limba și literatura română": 5, "Limba engleză": 3, [LM2[0]]: 2, "Istorie": 2, "Geografie": 2, "Logică": 2 }, add: [["Limba latină", 1]] });
+            if (cls === 10) return withLm2(plan(X_UMAN));
+            return sup(cls, {
+                set: { "Limba și literatura română": 4, "Limba engleză": 3, [LM2[0]]: 3, "Istorie": 2, [SOCIO_SUP(cls)]: cls === 12 ? 2 : 1 },
+                add: [["Limba latină", cls === 11 ? 2 : 1], ["Literatură universală", 1], ["Științe", 1], ...(cls === 11 ? [["Sociologie", 1]] : []),
+                    ["TIC", 1], ["Educație artistică", 1], ["Educație fizică", 1]]
+            });
+        }
     },
     "sociale": {
         group: "teoretic", label: "Științe sociale", hint: "profil umanist", classes: LICEU,
-        subjects: ({ cls }) => cls === 9
-            ? [["Limba și literatura română", 4], ["Limba engleză", 2], ["Limba franceză", 2], ["Limba latină", 1], ["Matematică", 2], ["Fizică", 1], ["Chimie", 1], ["Biologie", 1],
-                ["Istorie", 2], ["Geografie", 1], [SOCIO[9], 3], ["Religie", 1], ["Educație artistică", 1], ["Educație fizică", 1], ["TIC", 1]]
-            : cls === 10
-                ? [["Limba și literatura română", 4], ["Limba engleză", 2], ["Limba franceză", 2], ["Limba latină", 1], ["Matematică", 2], ["Fizică", 1], ["Chimie", 1], ["Biologie", 1],
-                    ["Istorie", 2], ["Geografie", 2], [SOCIO[10], 2], ["Religie", 1], ["Educație artistică", 1], ["Educație fizică", 1], ["TIC", 1]]
-                : [["Limba și literatura română", 4], ["Limba engleză", 2], ["Limba franceză", 2], ["Științe ale naturii", 1], ["Istorie", 2], ["Geografie", 1],
-                    ...(cls === 11 ? [["Economie", 1], ["Sociologie", 1], ["Psihologie", 1]] : [["Filosofie", 1], ["Studii sociale", 1], ["Științe socio-umane", 1]]),
-                    ["Religie", 1], ["Educație fizică", 1], HOLOCAUST]
+        subjects: ({ cls }) => {
+            if (cls === 9) return ix({ set: { "Limba și literatura română": 4, "Limba engleză": 3, [LM2[0]]: 2, "Istorie": 2, "Geografie": 2, "Logică": 2 }, add: [["Limba latină", 1]] });
+            if (cls === 10) return withLm2(plan(X_UMAN));
+            return sup(cls, {
+                set: { "Istorie": 3, "Geografie": 2, [SOCIO_SUP(cls)]: cls === 11 ? 2 : 3 },
+                add: [["Matematică", 2], ...(cls === 11 ? [["Sociologie", 2]] : [["Studii sociale", 1, { hint: "sau altă disciplină socio-umană aleasă de școală" }]]),
+                    ["TIC", cls === 11 ? 2 : 1], ["Educație artistică", 1], ["Educație fizică", 1]]
+            });
+        }
     },
     "arte-vizuale": {
-        group: "vocational", label: "Arte vizuale", hint: "arte plastice, arhitectură, design", classes: LICEU,
+        group: "vocational", label: "Arte vizuale", hint: "arte plastice, decorative, arhitectură, design", classes: LICEU,
         variantLabel: "Specializarea",
         variants: [
-            { id: "plastice", label: "Arte plastice", subjects: cls => [["Istoria artei", 1], ["Desen", 3], ["Pictură", 3], ["Modelaj", 2], ...(cls >= 11 ? [["Anatomie artistică", 1]] : [])] },
-            { id: "arhitectura", label: "Arhitectură", subjects: () => [["Istoria artei și arhitecturii", 1], ["Desen", 3], ["Geometrie descriptivă și perspectivă", 2], ["Studiul formei și al culorii", 2], ["Proiectare de arhitectură", 2]] },
-            { id: "design", label: "Design", subjects: cls => [["Istoria artei", 1], ["Desen", 3], ["Studiul formei și al culorii", 2], ["Atelier de design", cls >= 11 ? 4 : 3], ["Geometrie descriptivă și perspectivă", 1]] },
-            { id: "decorative", label: "Arte decorative", subjects: cls => [["Istoria artei", 1], ["Desen", 3], ["Studiul formei și al culorii", 2], ["Atelier de arte decorative", cls >= 11 ? 4 : 3]] }
+            { id: "plastice", label: "Arte plastice" },
+            { id: "decorative", label: "Arte decorative" },
+            { id: "arhitectura", label: "Arhitectură" },
+            { id: "design", label: "Design" }
         ],
-        subjects: ({ cls, variant }) => [...trunchi(cls, { drop: ["Educație artistică"] }), ...variant.subjects(cls)]
+        subjects: ({ cls, variant }) => {
+            const id = variant?.id || "plastice";
+            const atelier = { plastice: "Atelier de specialitate", decorative: "Atelier de arte decorative", arhitectura: "Atelier de arhitectură", design: "Atelier de design" }[id];
+            // În a IX-a, toate specializările de arte vizuale au aceleași discipline (OMEC 4350/2025, anexa 12).
+            if (cls === 9) return ix({
+                drop: ["Educație artistică"],
+                add: [["Educație muzicală", 1], [atelier, 2], ["Studiul formelor în desen", 2], ["Studiul formelor în culoare", 2], ["Studiul formelor în volum", 2],
+                    ["Crochiuri", 1], ["Istoria artelor și a arhitecturii", 1]]
+            });
+            const arhi = id === "arhitectura" || id === "design"; // în X–XII, design-ul e în tabelul „arhitectură, arte ambientale și design”
+            if (cls === 10) return withLm2(plan(X_VOC, {
+                add: [["Educație muzicală", 1], ["Studiul formelor în desen", 2], [arhi ? "Geometrie descriptivă și perspectivă" : "Studiul formelor în culoare și studiul culorii", 2],
+                    ["Studiul formelor în volum", 2], [atelier, 2], [arhi ? "Istoria artelor și a arhitecturii" : "Istoria artelor", 1]]
+            }));
+            return sup(cls, {
+                add: arhi
+                    ? [["Matematică", 2], ["Desen", 3], ["Geometrie descriptivă și perspectivă", 2], [atelier, 4], ["Istoria artelor și a arhitecturii", 2],
+                        ["Procesarea computerizată a imaginii", 2], ["Educație fizică", 1]]
+                    : [["Studiul formelor în desen", 3], ["Crochiuri", 1], [atelier, 4], ["Studiul corpului și al figurii umane", 3], ["Istoria artelor", 2],
+                        ["Procesarea computerizată a imaginii", 2], ["Educație fizică", 1]]
+            });
+        }
     },
     "muzica": {
         group: "vocational", label: "Muzică", hint: "instrument, canto, teorie", classes: LICEU,
-        subjects: ({ cls }) => [...trunchi(cls, { drop: ["Educație artistică"] }), ["Teorie-solfegiu-dicteu", 2], ["Instrument principal", 2], ["Pian complementar", 1],
-            ["Armonie", 1], ["Ansamblu coral / orchestral", 2], ["Istoria muzicii", 1], ...(cls >= 11 ? [["Forme muzicale", 1]] : [])]
+        subjects: ({ cls }) => {
+            if (cls === 9) return ix({
+                drop: ["Educație artistică"],
+                add: [["Instrument principal", 3, { hint: "sau canto, după secție" }], ["Ansamblu", 3, { hint: "coral, orchestral sau cameral" }], ["Teorie-solfegiu-dicteu", 3],
+                    ["Istoria muzicii", 1], ["Pian complementar", 1], ["Armonie", 1]]
+            });
+            if (cls === 10) return withLm2(plan(X_VOC, {
+                add: [["Educație vizuală", 1], ["Instrument principal", 3, { hint: "sau canto, după secție" }], ["Teorie-solfegiu-dicteu", 2], ["Ansamblu", 2, { hint: "coral, orchestral sau cameral" }],
+                    ["Armonie", 1], ["Istoria muzicii", 1], ["Pian complementar", 1]]
+            }));
+            return sup(cls, {
+                add: [["Instrument principal", 4, { hint: "sau canto, după secție" }], ["Teorie-solfegiu-dicteu", 2], ["Armonie", 2], ["Istoria muzicii", 2],
+                    ["Ansamblu", 2, { hint: "coral, orchestral sau cameral" }], ["Forme muzicale", 1], ["Pian complementar", 1], ["Educație fizică", 1], ["TIC", 1]]
+            });
+        }
     },
     "coregrafie": {
         group: "vocational", label: "Coregrafie", hint: "dans clasic și contemporan", classes: LICEU,
-        subjects: ({ cls }) => [...trunchi(cls, { drop: ["Educație artistică", "Educație fizică"] }), ["Dans clasic", 4], ["Dans contemporan", 2], ["Dans de caracter", 1],
-            ["Istoria dansului", 1], ["Educație muzicală", 1]]
+        subjects: ({ cls }) => {
+            if (cls === 9) return ix({
+                drop: ["Educație artistică", "Educație fizică și sport"],
+                add: [["Dans clasic", 8], ["Dans contemporan", 1], ["Dans de caracter", 1], ["Dans românesc", 1], ["Repertoriu individual", 1], ["Repertoriu de ansamblu", 1],
+                    ["Istoria baletului", 1], ["Educație muzicală", 1], ["Laborator de creație", 1]]
+            });
+            if (cls === 10) return withLm2(plan(X_VOC, {
+                drop: ["Educație fizică"],
+                add: [["Educație muzicală", 1], ["Educație vizuală", 1], ["Dans clasic", 7], ["Dans contemporan", 2], ["Dans de caracter", 2], ["Dans românesc", 1], ["Istoria baletului", 1]]
+            }));
+            return sup(cls, {
+                add: [["Biologie", 1], ["Educație muzicală", 1], ["Dans clasic", 8], ["Dans contemporan", 2], ["Dans de caracter", 2], ["Dans românesc", 1],
+                    ["Repertoriu", cls === 11 ? 1 : 2], ["Istoria baletului", 1], ...(cls === 11 ? [["TIC", 1]] : [])]
+            });
+        }
     },
     "teatru": {
         group: "vocational", label: "Arta actorului", hint: "teatru", classes: LICEU,
-        subjects: ({ cls }) => [...trunchi(cls, { drop: ["Educație artistică"] }), ["Arta actorului", cls >= 11 ? 5 : 4], ["Mișcare scenică", 2], ["Dicție și vorbire scenică", 1],
-            ["Istoria teatrului", 1], ["Educație muzicală", 1]]
+        subjects: ({ cls }) => {
+            if (cls === 9) return ix({
+                drop: ["Educație artistică"],
+                add: [["Arta actorului", 4], ["Mișcare scenică", 2], ["Dicție și vorbire scenică", 1], ["Istoria teatrului", 1], ["Artele spectacolului", 1],
+                    ["Educație muzicală", 1], ["Educație vizuală", 1]]
+            });
+            if (cls === 10) return withLm2(plan(X_VOC, {
+                add: [["Educație muzicală", 1], ["Educație vizuală", 1], ["Arta actorului", 4], ["Mișcare scenică", 2], ["Dicție și vorbire scenică", 1], ["Istoria teatrului", 1]]
+            }));
+            return sup(cls, {
+                add: [["Arta actorului", 5], ["Mișcare scenică", 2], ["Dicție și vorbire scenică", 1], ["Istoria teatrului", 1], ["Artele spectacolului", 1],
+                    ["Educație muzicală", 1], ["Educație fizică", 2], ["TIC", 1]]
+            });
+        }
     },
     "sportiv": {
         group: "vocational", label: "Sportiv", hint: "instructor sportiv", classes: LICEU,
-        subjects: ({ cls }) => [...trunchi(cls, { bio: 2, drop: ["Educație fizică"] }), ["Pregătire sportivă practică", 6], ["Pregătire sportivă teoretică", 1],
-            ["Anatomie și fiziologie", 1]]
+        subjects: ({ cls }) => {
+            if (cls === 9) return ix({ drop: ["Educație fizică și sport"], add: [["Pregătire sportivă teoretică", 2], ["Pregătire sportivă practică", 12]] });
+            if (cls === 10) return withLm2(plan(X_VOC, {
+                drop: ["Educație fizică"],
+                add: [["Educație muzicală", 1], ["Educație vizuală", 1], ["Pregătire sportivă teoretică", 2], ["Pregătire sportivă practică", 10]]
+            }));
+            return sup(cls, { add: [["Matematică", 1], ["Biologie", 1], ["Educație muzicală", 1], ["Pregătire sportivă teoretică", 2], ["Pregătire sportivă practică", 14]] });
+        }
     },
     "pedagogic": {
         group: "vocational", label: "Pedagogic", hint: "învățător-educatoare", classes: LICEU,
-        subjects: ({ cls }) => [...trunchi(cls, { drop: ["Educație artistică", "Educație fizică"] }), ["Pedagogie", 2], ["Psihologie", 1], ["Educație muzicală", 2],
-            ["Instrument muzical", 1], ["Educație plastică", 1], ["Educație fizică", 2], ["Practică pedagogică", cls >= 11 ? 2 : 1],
-            ...(cls >= 11 ? [["Didactica disciplinelor din învățământul primar", 2]] : [])].filter(([n], i, a) => a.findIndex(([m]) => m === n) === i)
+        subjects: ({ cls }) => {
+            if (cls === 9) return ix({ set: { "Limba și literatura română": 5 }, add: [["Pedagogie", 2], ["Practică pedagogică", 3], ["Managementul emoțiilor", 1]] });
+            if (cls === 10) return withLm2(plan(X_VOC, {
+                set: { "Limba și literatura română": 4, [LM2[0]]: 2, "Fizică": 1, "TIC": 2 },
+                add: [["Psihologie generală", 2], ["Teoria și practica instruirii și evaluării", 1], ["Educație muzicală", 1], ["Educație vizuală", 1],
+                    ["Pregătire practică de specialitate", 3]]
+            }));
+            if (cls === 11) return withLm2([
+                ["Limba și literatura română", 4], ["Metodica predării limbii române", 1], ["Limba engleză", 2], [LM2[0], 1],
+                ["Matematică", 1], ["Aritmetică", 1], ["Metodica predării matematicii", 1], ["Științe ale naturii", 1], ["Metodica predării științelor", 1],
+                ["Istorie", 1], XI_XII_ISTORIE(11), ["Geografie", 1], ["Metodica predării istoriei și geografiei", 1], ["Economie", 1], ["Religie", 1],
+                ["Managementul clasei de elevi", 1], ["Psihologia vârstelor", 1], ["Practică pedagogică", 4],
+                ["Educație muzicală și plastică", 1], ["Metodica educației muzicale și plastice", 1], ["Educație fizică", 1], ["Metodica educației fizice", 1], ["TIC", 1]
+            ]);
+            return withLm2([
+                ["Limba și literatura română", 4], ["Limba engleză", 2], [LM2[0], 2],
+                ["Matematică", 1], ["Aritmetică", 1], ["Științe", 2], ["Istorie", 1], XI_XII_ISTORIE(12), ["Geografie", 1], ["Filosofie", 1], ["Religie", 1],
+                ["Psihopedagogie specială", 1], ["Psihologia educației", 1], ["Didactici inovative", 1], ["Practică pedagogică", 4],
+                ["Educație muzicală și plastică", 2], ["Educație fizică", 1], ["TIC", 1]
+            ]);
+        }
     },
     "teologic": {
-        group: "vocational", label: "Teologic", hint: "seminar, teologie", classes: LICEU,
-        subjects: ({ cls }) => [...trunchi(cls), ["Limba latină", 1], ["Studiul Sfintei Scripturi", 2], ["Muzică bisericească", 2], ["Istoria religiilor", 1]]
+        group: "vocational", label: "Teologic", hint: "teologie ortodoxă", classes: LICEU,
+        subjects: ({ cls }) => {
+            // Ora de religie din trunchiul comun devine disciplină teologică.
+            if (cls === 9) return ix({
+                drop: ["Religie"],
+                add: [["Studiul Sfintei Scripturi", 2], ["Învățătura de credință ortodoxă", 1], ["Liturgică și teologie practică", 3], ["Muzică bisericească", 3],
+                    ["Spiritualitate și formare duhovnicească", 1], ["Limba latină", 1], ["Limba greacă", 1]]
+            });
+            if (cls === 10) return withLm2(plan(X_VOC, {
+                drop: ["Religie"], set: { "Limba și literatura română": 4 },
+                add: [["Studiul Sfintei Scripturi", 2], ["Liturgică", 2], ["Muzică bisericească", 2], ["Învățătura de credință ortodoxă", 1],
+                    ["Limba latină", 1], ["Limba greacă", 1], ["Educație muzicală", 1], ["Educație vizuală", 1]]
+            }));
+            return sup(cls, {
+                drop: ["Religie"],
+                add: [["Studiul Sfintei Scripturi", 2], ["Învățătura de credință ortodoxă", 2], ["Liturgică", 2], ["Muzică bisericească", 3], ["Istoria bisericii", 2],
+                    ["Morală și spiritualitate ortodoxă", 1], ["Pastorală", 1], ["Limba latină", 1], ["Limba greacă", 1],
+                    ["Educație artistică", 1], ["Educație muzicală", 1], ["Educație fizică", 1], ["TIC", 1]]
+            });
+        }
     },
     "tehnic": {
         group: "tehnologic", label: "Tehnic", hint: "electronică, mecanică, construcții…", classes: LICEU,
-        subjects: ({ cls }) => [...trunchi(cls, { mate: 3, fiz: 2, drop: ["Educație artistică"] }),
-            ["Module de specialitate", cls >= 11 ? 8 : 6], ["Instruire practică", cls >= 11 ? 4 : 3]]
+        subjects: ({ cls }) => cls === 9 ? ix({ add: TEHNOLOGIC_IX }) : cls === 10 ? TEHNOLOGIC_X("tehnic") : tehnologicSup(cls, "tehnic")
     },
     "servicii": {
         group: "tehnologic", label: "Servicii", hint: "economic, turism, comerț…", classes: LICEU,
-        subjects: ({ cls }) => [...trunchi(cls, { drop: ["Educație artistică"] }),
-            ...(cls >= 11 ? [] : [["Economie", 1]]), ["Module de specialitate", cls >= 11 ? 8 : 6], ["Instruire practică", cls >= 11 ? 3 : 2]]
+        subjects: ({ cls }) => cls === 9 ? ix({ add: TEHNOLOGIC_IX }) : cls === 10 ? TEHNOLOGIC_X("servicii") : tehnologicSup(cls, "servicii")
     },
     "resurse": {
         group: "tehnologic", label: "Resurse naturale și protecția mediului", hint: "agricultură, alimentație, ecologie…", classes: LICEU,
-        subjects: ({ cls }) => [...trunchi(cls, { chim: 2, bio: 2, drop: ["Educație artistică"] }),
-            ["Module de specialitate", cls >= 11 ? 8 : 6], ["Instruire practică", cls >= 11 ? 4 : 3]]
+        subjects: ({ cls }) => cls === 9 ? ix({ add: TEHNOLOGIC_IX }) : cls === 10 ? TEHNOLOGIC_X("resurse") : tehnologicSup(cls, "resurse")
     },
     "gimnaziu": {
+        // OMENCS 3590/2016, anexa 2 (cu modificările din 2018 și 2019), în vigoare și în 2026–2027
         group: "alte", label: "Gimnaziu", hint: "clasele V–VIII", classes: [5, 6, 7, 8],
-        subjects: ({ cls }) => [
-            ["Limba și literatura română", cls === 5 ? 5 : 4], ["Matematică", 4], ["Limba engleză", 2], ["Limba franceză", 2],
-            ...(cls === 7 ? [["Limba latină", 1]] : []),
-            ["Istorie", cls === 5 ? 1 : 2], ["Geografie", cls >= 7 ? 2 : 1], ["Biologie", cls === 5 ? 1 : cls === 8 ? 1 : 2],
-            ...(cls >= 6 ? [["Fizică", 2]] : []), ...(cls >= 7 ? [["Chimie", 2]] : []),
-            ["Educație socială", 1], ["Religie", 1], ["Educație fizică", 2], ["Educație plastică", 1], ["Educație muzicală", 1],
-            ["Educație tehnologică", 1], ["Informatică și TIC", 1]
-        ]
+        subjects: ({ cls }) => withLm2([
+            ["Limba și literatura română", 4], ["Limba engleză", 2], [LM2[0], 2],
+            ...(cls === 7 ? [["Elemente de limbă latină și de cultură romanică", 1]] : []),
+            ["Matematică", 4], ...(cls >= 6 ? [["Fizică", 2]] : []), ...(cls >= 7 ? [["Chimie", 2]] : []),
+            ["Biologie", cls === 6 || cls === 7 ? 2 : 1],
+            ["Educație socială", 1, { hint: { 5: "gândire critică și drepturile copilului", 6: "educație interculturală", 7: "educație pentru cetățenie democratică", 8: "educație economico-financiară" }[cls] }],
+            ["Istorie", cls === 5 || cls === 8 ? 2 : 1], ["Geografie", cls === 8 ? 2 : 1], ["Religie", 1],
+            ["Educație plastică", 1], ["Educație muzicală", 1], ["Educație fizică și sport", 2],
+            ["Educație tehnologică și aplicații practice", 1], ["Informatică și TIC", 1], ["Consiliere și dezvoltare personală", 1]
+        ])
     },
     "alt": { group: "alte", label: "Altă specializare", hint: "pornesc de la o listă goală", subjects: () => [] }
 };
 
 /** Ce plan stă la baza propunerii, spus pe scurt sub alegerea clasei. */
 function setupPlanNote(profile, cls) {
-    if (profile === "gimnaziu" || profile === "alt") return "";
+    if (profile === "alt") return "";
+    if (profile === "gimnaziu") return "După planul-cadru pentru gimnaziu din 2016 (OMENCS 3590/2016), încă în vigoare.";
+    const group = SETUP_PROFILES[profile]?.group;
+    const special = group === "vocational" || group === "tehnologic"
+        ? " Orele disciplinelor de specialitate diferă de la o școală la alta: verifică-le cu orarul tău."
+        : "";
     return cls === 9
-        ? "Clasa a IX-a urmează planul-cadru nou, aplicat din 2026–2027."
-        : `Clasa a ${ROMAN[cls]}-a urmează planul-cadru în vigoare pentru ea (cel din 2009); ce diferă față de a IX-a e deja ajustat.`;
+        ? `Clasa a IX-a are planul-cadru nou (OMEC 4350/2025), aplicat din 2026–2027: 19 ore comune pentru toate profilurile, plus cele ale profilului tău.${special}`
+        : `Clasa a ${ROMAN[cls]}-a rămâne pe planul-cadru din 2009 (OMECI 3410/2009${group === "tehnologic" ? ", 3081/2010 și 3412/2009" : ""}), cu modificările din 2023 și 2024${cls >= 11 ? (cls === 11 ? " (ora de Istoria evreilor. Holocaustul)" : " (ora de Istoria comunismului din România)") : ""}.${special}`;
 }
 
 function setupDone() {
@@ -4754,7 +4929,7 @@ function setupSubjectsHTML() {
                 <li class="setup-row ${r.on ? "" : "is-off"} ${r.exists ? "is-existing" : ""}">
                     <input type="checkbox" class="setup-check" data-i="${i}" ${r.on ? "checked" : ""} ${r.exists ? "disabled" : ""} aria-label="${escapeHTML(`Include ${r.name}`)}">
                     <span class="setup-name-cell">
-                        <input type="text" class="glass-input setup-name" data-i="${i}" value="${escapeHTML(r.name)}" maxlength="40" ${r.exists ? "readonly" : ""} aria-label="Numele materiei">
+                        <input type="text" class="glass-input setup-name" data-i="${i}" value="${escapeHTML(r.name)}" maxlength="60" ${r.exists ? "readonly" : ""} aria-label="Numele materiei">
                         ${r.hint && !r.exists ? `<small class="setup-row-hint">${escapeHTML(r.hint)}</small>` : ""}
                     </span>
                     ${r.exists ? `<span class="setup-exists">există deja</span>` : `
@@ -4766,7 +4941,7 @@ function setupSubjectsHTML() {
                 </li>`).join("")}
         </ul>
         <form class="setup-add" data-setup-add>
-            <input type="text" class="glass-input" id="setup-new" maxlength="40" placeholder="Altă materie (ex: Economie)" aria-label="Adaugă o materie" ${rows.length ? "" : "data-autofocus"}>
+            <input type="text" class="glass-input" id="setup-new" maxlength="60" placeholder="Altă materie (ex: Economie)" aria-label="Adaugă o materie" ${rows.length ? "" : "data-autofocus"}>
             <button type="submit" class="btn btn-glass">${icon("plus")} Adaugă</button>
         </form>
         <p class="setup-count">${plural(on.length, "materie nouă", "materii noi")} · ${plural(hours, "oră", "ore")} pe săptămână · Purtarea e deja în catalog</p>`;
