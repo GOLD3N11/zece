@@ -5,7 +5,14 @@
  * (Project settings → Your apps → Web app). Aceste chei sunt publice prin natura lor; protecția datelor
  * vine din regulile Firestore (vezi firestore.rules), care lasă fiecare utilizator să-și vadă doar propriile date.
  */
-window.ZECE_FIREBASE = null;
+window.ZECE_FIREBASE = {
+    apiKey: "AIzaSyCiNMItAaqj0hwrwOUe58wKjqcWkAaEMvw",
+    authDomain: "zece-2f182.firebaseapp.com",
+    projectId: "zece-2f182",
+    storageBucket: "zece-2f182.firebasestorage.app",
+    messagingSenderId: "299194459210",
+    appId: "1:299194459210:web:98605decc88d795d2672b3"
+};
 /* Exemplu:
 window.ZECE_FIREBASE = {
     apiKey: "AIza…",
