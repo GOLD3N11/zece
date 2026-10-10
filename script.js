@@ -2439,6 +2439,144 @@ function bindCatalogEvents() {
     });
 }
 
+/* ---------- meniul unei materii (dublu-clic, clic dreapta, apăsare lungă sau Shift+F10 pe rând) ---------- */
+const catMenu = { mat: "", returnFocus: null, openedAt: 0, last: { mat: "", t: 0, x: 0, y: 0 } };
+
+function openCatMenu(mat, x, y, returnFocus = null) {
+    if (!state.subjects[mat]) return;
+    const menu = $("cat-menu");
+    if (!menu.hidden && catMenu.mat === mat) return;
+    catMenu.openedAt = performance.now();
+    catMenu.mat = mat;
+    catMenu.returnFocus = returnFocus;
+    $("cat-menu-title").textContent = mat;
+    menu.hidden = false;
+    const w = menu.offsetWidth;
+    const h = menu.offsetHeight;
+    const vw = document.documentElement.clientWidth || innerWidth;
+    menu.style.left = `${Math.max(8, Math.min(vw - w - 8, x))}px`;
+    menu.style.top = `${Math.max(8, Math.min(innerHeight - h - 8, y))}px`;
+    menu.querySelector("[role='menuitem']")?.focus({ preventScroll: true });
+}
+
+function closeCatMenu({ restoreFocus = true } = {}) {
+    const menu = $("cat-menu");
+    if (!menu || menu.hidden) return;
+    menu.hidden = true;
+    const back = catMenu.returnFocus;
+    catMenu.returnFocus = null;
+    if (restoreFocus && back && document.contains(back)) back.focus({ preventScroll: true });
+}
+
+/** „Pe scurt”: media, ținta, ce-ți trebuie, notele și următorul test — fără restul detaliilor. */
+function openSubjectGlance(mat) {
+    const sub = state.subjects[mat];
+    if (!sub) return;
+    const d = metrics.subjects[mat];
+    const has = sub.grades.length > 0;
+    const reached = reachesTarget(d, sub.target);
+    const plan = has && !reached ? planForCondition(mat, x => reachesTarget(x, sub.target)) : null;
+    const pill = plan ? planPill(plan) : null;
+    const next = upcomingForSubject(mat, 6).find(ev => NEEDS_GRADE.has(ev.type));
+    const today = getLocalDateKey();
+    openModal({
+        title: `${mat} · pe scurt`,
+        confirmText: "Adaugă o notă",
+        cancelText: "Închide",
+        body: `
+            <div class="glance">
+                <div class="glance-top">
+                    <div class="glance-avg tone-${has ? gradeTone(d.exactAvg) : "none"}">
+                        <b>${has ? d.exactAvg.toFixed(2) : "–"}</b>
+                        <small>${has ? `media · finală ${d.roundedAvg}` : "încă fără note"}</small>
+                    </div>
+                    <div class="glance-facts">
+                        <span><b>Ținta</b> ${fmtTarget(sub.target)}${has ? (reached ? ` · <span class="azi-need is-ok">atinsă</span>` : "") : ""}</span>
+                        <span><b>Stare</b> <span class="badge ${d.statusClass}">${escapeHTML(d.status)}</span></span>
+                        <span><b>Ore</b> ${fmtNumber(sub.ore)} pe săptămână</span>
+                    </div>
+                </div>
+                ${plan ? `<p class="glance-need">${icon("target")} Ca să ajungi la ${fmtTarget(sub.target)}: ${plan.next
+                    ? `<span class="azi-need is-${pill.tone}">${escapeHTML(pill.text)}</span> la următoarea notă`
+                    : `ai nevoie de <span class="azi-need is-${pill.tone}">${escapeHTML(pill.text)}</span>`}.</p>` : ""}
+                ${next ? `<p class="glance-next">${icon("calendar-check")} ${escapeHTML(capitalize(eventPhrase(next.type, next.date, today)))}.</p>` : ""}
+                <div class="glance-grades" aria-label="Note"><span class="glance-label">${has ? plural(sub.grades.length, "notă", "note") : "Note"}</span>
+                    ${has ? gradesChrono(sub).map(({ g }) => `<span class="cat-grade-val tone-${gradeTone(Number(g.val))}" title="${escapeHTML(`${g.type || "Altele"}${g.date ? ` · ${getShortDateLabel(g.date)}` : ""}`)}">${escapeHTML(g.val)}</span>`).join("")
+                        : `<span class="subtitle">Nicio notă încă.</span>`}
+                </div>
+            </div>`,
+        onConfirm: () => {
+            closeActionModal();
+            openAddGradeModal(mat);
+        }
+    });
+}
+
+function bindCatMenu() {
+    const list = $("cat-list");
+    const menu = $("cat-menu");
+    if (!list || !menu) return;
+    const rowAt = event => {
+        const row = event.target.closest?.(".cat-row") || document.elementFromPoint?.(event.clientX, event.clientY)?.closest(".cat-row");
+        return row && list.contains(row) && state.subjects[row.dataset.mat] ? row : null;
+    };
+    const open = event => {
+        const row = rowAt(event);
+        if (!row) return;
+        event.preventDefault();
+        window.getSelection?.()?.removeAllRanges(); // dublu-clicul nu mai selectează textul
+        openCatMenu(row.dataset.mat, event.clientX + 4, event.clientY + 4, row);
+    };
+    // Dublu-clicul e detectat de mână: primul clic redesenează lista (alege materia), deci browserul
+    // nu mai vede „același element” de două ori și nu trimite mereu „dblclick”.
+    list.addEventListener("click", event => {
+        const row = rowAt(event);
+        if (!row) return;
+        const mat = row.dataset.mat;
+        const now = performance.now();
+        const last = catMenu.last;
+        const second = event.detail === 2 || (last.mat === mat && now - last.t < 450 && Math.hypot(event.clientX - last.x, event.clientY - last.y) < 14);
+        catMenu.last = second ? { mat: "", t: 0, x: 0, y: 0 } : { mat, t: now, x: event.clientX, y: event.clientY };
+        if (!second) return;
+        window.getSelection?.()?.removeAllRanges();
+        const x = event.clientX + 4;
+        const y = event.clientY + 4;
+        // după ce clicul și-a terminat treaba (selectarea materiei), ca meniul să rămână deschis și cu focus
+        setTimeout(() => openCatMenu(mat, x, y, list.querySelector(`.cat-row[data-mat="${CSS.escape(mat)}"]`)), 0);
+    });
+    list.addEventListener("dblclick", open);
+    list.addEventListener("contextmenu", open);
+    list.addEventListener("keydown", event => {
+        if (!((event.shiftKey && event.key === "F10") || event.key === "ContextMenu")) return;
+        const row = event.target.closest(".cat-row");
+        if (!row || !state.subjects[row.dataset.mat]) return;
+        event.preventDefault();
+        const r = row.getBoundingClientRect();
+        openCatMenu(row.dataset.mat, r.left + 24, r.bottom - 4, row);
+    });
+    document.addEventListener("mousedown", event => {
+        if (!menu.hidden && !menu.contains(event.target)) closeCatMenu({ restoreFocus: false });
+    });
+    window.addEventListener("resize", () => closeCatMenu({ restoreFocus: false }));
+    window.addEventListener("scroll", () => { if (performance.now() - catMenu.openedAt > 400) closeCatMenu({ restoreFocus: false }); }, { passive: true });
+    menu.addEventListener("keydown", event => {
+        const items = [...menu.querySelectorAll("[role='menuitem']")];
+        const i = items.indexOf(document.activeElement);
+        if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closeCatMenu(); }
+        else if (event.key === "ArrowDown") { event.preventDefault(); items[(i + 1) % items.length].focus(); }
+        else if (event.key === "ArrowUp") { event.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+        else if (event.key === "Home") { event.preventDefault(); items[0].focus(); }
+        else if (event.key === "End") { event.preventDefault(); items.at(-1).focus(); }
+        else if (event.key === "Tab") closeCatMenu({ restoreFocus: false });
+    });
+}
+
+const CAT_MENU_ACTIONS = {
+    "cat-menu-edit": () => { const mat = catMenu.mat; closeCatMenu(); openEditSubjectModal(mat); },
+    "cat-menu-grade": () => { const mat = catMenu.mat; closeCatMenu(); openAddGradeModal(mat); },
+    "cat-menu-glance": () => { const mat = catMenu.mat; closeCatMenu(); openSubjectGlance(mat); }
+};
+
 /* ---------- CALENDAR ---------- */
 function renderCalendar() {
     const body = $("cal-body");
@@ -5190,6 +5328,7 @@ const weekdayLower = date => WEEKDAY_LONG[parseDateKey(date).getDay()].toLocaleL
 function eventPhrase(type, date, from) {
     const what = EV_ARTICLE[type] || "evaluarea";
     const n = daysBetween(from, date);
+    if (n === 0) return `${what} de azi`;
     if (n === 1) return `${what} de mâine`;
     const d = parseDateKey(date);
     return n <= 6 ? `${what} de ${weekdayLower(date)}` : `${what} din ${d.getDate()} ${MONTHS[d.getMonth()].toLocaleLowerCase("ro")}`;
@@ -9195,7 +9334,8 @@ const ACTIONS = {
     "none": () => {},
     ...ACCOUNT_ACTIONS,
     ...TOUR_ACTIONS,
-    ...PLAN_ACTIONS
+    ...PLAN_ACTIONS,
+    ...CAT_MENU_ACTIONS
 };
 
 function bindEvents() {
@@ -9282,6 +9422,7 @@ function init() {
     applyCursorSetting();
     bindSetupEvents();
     bindAuthEvents();
+    bindCatMenu();
     initBuddyLook();
     initCloud();
     // Cu conturi, configurarea vine după alegerea de pe ecranul de autentificare.

@@ -715,6 +715,14 @@
         </div>
     </div>
 
+    <!-- Catalog: meniul unei materii (dublu-clic / clic dreapta / apăsare lungă) -->
+    <div id="cat-menu" class="cat-menu" role="menu" aria-labelledby="cat-menu-title" hidden>
+        <p class="cat-menu-title" id="cat-menu-title"></p>
+        <button type="button" role="menuitem" data-action="cat-menu-edit"><svg class="ico" aria-hidden="true"><use href="#i-pen"/></svg><span>Editează materia</span></button>
+        <button type="button" role="menuitem" data-action="cat-menu-grade"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span>Adaugă o notă</span></button>
+        <button type="button" role="menuitem" data-action="cat-menu-glance"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg><span>Vedere simplificată</span></button>
+    </div>
+
     <!-- Turul ghidat: reflector peste o zonă + bilețelul mascotei (conținutul e pus din script.js) -->
     <div id="tour" class="tour" hidden>
         <div class="tour-hole" id="tour-hole" aria-hidden="true"></div>
