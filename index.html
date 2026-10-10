@@ -188,6 +188,7 @@
                 <!-- Conținutul cardurilor e generat în script.js (renderDashboard) -->
                 <div class="azi-grid">
                     <div class="azi-col azi-col-main">
+                        <section class="glass-card azi-card azi-start" id="azi-start" aria-labelledby="azi-start-title" hidden></section>
                         <section class="glass-card azi-card azi-day" id="azi-day" aria-labelledby="azi-day-title"></section>
                         <section class="glass-card azi-card azi-plan" id="azi-plan" aria-labelledby="azi-plan-title"></section>
                         <section class="glass-card azi-card azi-todo" id="azi-todo" aria-labelledby="azi-todo-title"></section>
@@ -281,7 +282,7 @@
             <section id="tab-plan" class="tab-content" aria-labelledby="h-plan">
                 <div class="page-intro">
                     <div>
-                        <h2 id="h-plan">Planul meu</h2>
+                        <h2 id="h-plan">Planul meu <button type="button" class="help-dot" data-action="help" data-key="plan" aria-label="Ce înseamnă: Planul?" title="Ce înseamnă?">?</button></h2>
                         <p>Ce înveți în fiecare zi, cât și de ce: înainte de teste, pentru teme și pentru materiile care au nevoie. Se reface singur când apare ceva nou.</p>
                     </div>
                     <div class="plan-head-tools" id="plan-tools" hidden>
@@ -296,7 +297,7 @@
             <section id="tab-simulator" class="tab-content" aria-labelledby="h-simulator">
                 <div class="page-intro">
                     <div>
-                        <h2 id="h-simulator">Simulator</h2>
+                        <h2 id="h-simulator">Simulator <button type="button" class="help-dot" data-action="help" data-key="sim" aria-label="Ce înseamnă: Simulatorul?" title="Ce înseamnă?">?</button></h2>
                         <p>Adaugă note ipotetice și vezi cum s-ar schimba mediile. Notele tale reale nu sunt modificate.</p>
                     </div>
                 </div>
@@ -502,6 +503,10 @@
                                 <input type="text" id="set-buddy" class="glass-input" maxlength="20" autocomplete="off" placeholder="Tiți">
                             </div>
                         </div>
+                    </div>
+                    <div class="glass-card programme-card">
+                        <h3><svg class="ico" aria-hidden="true"><use href="#i-graduation"/></svg> Programa ta <button type="button" class="help-dot" data-action="help" data-key="programme" aria-label="Ce înseamnă: Programa?" title="Ce înseamnă?">?</button></h3>
+                        <div id="programme-settings" class="mt-3"></div>
                     </div>
                     <div class="glass-card cloud-only account-card">
                         <h3><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg> Cont și sincronizare</h3>

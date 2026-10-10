@@ -63,7 +63,9 @@ const DEFAULT_SETTINGS = {
     // Raportul pentru printare: datele de pe antet, perioada și secțiunile alese ultima dată
     report: { name: "", cls: "", period: "year", sections: {} },
     // Personalizare: cum îl cheamă pe elev și cum și-a botezat mascota (post-it-ul de pe pagina Azi)
-    profile: { name: "", buddy: "Tiți" }
+    profile: { name: "", buddy: "Tiți" },
+    // Programa elevului (aleasă în configurare): de ea depind materiile care se pot adăuga
+    school: { profile: "", cls: 0, variant: "", lm2: "Limba franceză" }
 };
 
 const REPORT_SECTIONS = [
@@ -782,6 +784,12 @@ function sanitizeSettings(raw) {
             density: pick(s.appearance.density, ["normal", "compact", "spacious"], "normal"),
             cursor: pick(s.appearance.cursor, CURSOR_MODES, "off"),
             island: pick(s.appearance.island, ["on", "off"], "on")
+        },
+        school: {
+            profile: typeof s.school?.profile === "string" && SETUP_PROFILES[s.school.profile] ? s.school.profile : "",
+            cls: Number.isInteger(s.school?.cls) ? s.school.cls : 0,
+            variant: typeof s.school?.variant === "string" ? s.school.variant.slice(0, 30) : "",
+            lm2: LM2_CHOICES.includes(s.school?.lm2) ? s.school.lm2 : LM2_CHOICES[0]
         },
         modules: sanitizeModules(s.modules),
         report: {
@@ -1549,6 +1557,7 @@ function renderDashboard() {
     $("azi-day").innerHTML = homeDayHTML(days, links);
     $("azi-todo").innerHTML = homeTodoHTML(todo, links, days.today);
     if ($("azi-plan")) $("azi-plan").innerHTML = homePlanHTML(days.today);
+    if ($("azi-start")) { const st = homeStartHTML(); $("azi-start").innerHTML = st; $("azi-start").hidden = !st; }
     $("azi-avg").innerHTML = homeAverageHTML();
     const watch = homeWatchHTML();
     $("azi-watch").innerHTML = watch;
@@ -1582,6 +1591,60 @@ function homeSummary({ today, date }, { missed, tests }) {
     const ungraded = missed.filter(o => NEEDS_GRADE.has(o.ev.type)).length;
     if (ungraded) out.push(ungraded === 1 ? "Un test așteaptă nota." : `${ungraded} teste așteaptă nota.`);
     return out.length ? out.join(" ") : "Nimic urgent. Ești la zi.";
+}
+
+/* ---------- „?”: explicații pe înțelesul tuturor ---------- */
+const HELP = {
+    gpa: { title: "Media generală", text: "Media tuturor materiilor tale, calculată ca în catalog: fiecare materie are media ei (rotunjită la final), iar media generală e media lor. Dirigenția din liceu și materiile marcate „exclusă” nu intră." },
+    target: { title: "Ținta", text: "Media pe care ți-o dorești. O alegi pentru media generală (în Setări) și pentru fiecare materie (din „Editează”). Aplicația îți spune ce note îți trebuie ca s-o atingi." },
+    risk: { title: "„La risc”", text: "O materie e la risc când media ei e sub pragul ales de tine (implicit 8). Le vezi primele în Catalog, iar planul îți pune sesiuni în plus pentru ele." },
+    need: { title: "Ce îți trebuie", text: "Ce notă îți trebuie la următoarea evaluare ca să ajungi (sau să rămâi) la țintă. Dacă nu se poate dintr-o singură notă, îți spun câte note de un anumit fel îți trebuie." },
+    sim: { title: "Simulatorul", text: "Aici încerci note „ce-ar fi dacă”: adaugi note imaginare și vezi cum s-ar schimba mediile. Notele tale reale nu se schimbă." },
+    plan: { title: "Planul", text: "Îți împart timpul de învățat pe 7 zile: înainte de teste, pentru teme și pentru materiile care au nevoie. Apeși „Începe”, înveți cât arată cronometrul, iar sesiunea se bifează singură." },
+    programme: { title: "Programa", text: "Materiile tale vin din planul-cadru al profilului și clasei tale, plus dirigenția și un opțional (căruia îi scrii tu tema). Alte materii nu se pot adăuga, ca să nu se strice mediile." }
+};
+const helpDot = key => `<button type="button" class="help-dot" data-action="help" data-key="${key}" aria-label="${escapeHTML(`Ce înseamnă: ${HELP[key].title}?`)}" title="Ce înseamnă?">?</button>`;
+function openHelp(key) {
+    const h = HELP[key];
+    if (!h) return;
+    openModal({ title: h.title, body: `<p class="help-text">${escapeHTML(h.text)}</p>`, confirmText: "", cancelText: "Am înțeles", guestOk: true });
+}
+
+/* ---------- „Primii pași”: ce face aplicația utilă, bifat singur pe măsură ce elevul le face ---------- */
+const START_HIDE_KEY = "pro_start_hidden_v4";
+function startSteps() {
+    const hasGrade = Object.values(state.subjects).some(sub => sub.grades.length);
+    const hasEvent = Object.keys(state.calendar).length > 0;
+    const hasTimetable = Object.values(state.timetable).some(list => list.length);
+    return [
+        { done: Boolean(myProgramme()), label: "Alege-ți programa", hint: "materiile se completează singure", action: "programme-change" },
+        { done: hasTimetable, label: "Completează orarul", hint: "ca să vezi orele fiecărei zile", action: "timetable" },
+        { done: hasGrade, label: "Adaugă prima notă", hint: "media se calculează singură", action: "add-grade" },
+        { done: hasEvent, label: "Pune un test în calendar", hint: "îți spun ce notă îți trebuie", action: "quick-test" },
+        { done: state.plan.prefs.setup, label: "Fă-ți planul de învățat", hint: "2 întrebări, restul e automat", action: "nav", tab: "tab-plan" }
+    ];
+}
+function homeStartHTML() {
+    let hidden = false;
+    try { hidden = localStorage.getItem(START_HIDE_KEY) === "1"; } catch (_) { /* fără stocare */ }
+    const steps = startSteps();
+    const done = steps.filter(st => st.done).length;
+    if (hidden || done === steps.length || (typeof guest !== "undefined" && guest.on)) return "";
+    const next = steps.find(st => !st.done);
+    return `
+        ${homeCardHead("azi-start-title", "rocket", "Primii pași", `<span class="cat-count">${done} din ${steps.length}</span>`)}
+        <p class="azi-more-line">Cinci lucruri scurte și aplicația lucrează pentru tine. Apasă pe un pas ca să-l faci acum.</p>
+        <ol class="start-steps">
+            ${steps.map(st => `
+                <li class="${st.done ? "is-done" : ""} ${st === next ? "is-next" : ""}">
+                    <button type="button" class="start-step" data-action="${st.done ? "none" : st.action}" ${st.tab ? `data-tab="${st.tab}"` : ""} ${st.done ? 'aria-disabled="true" tabindex="-1"' : ""}>
+                        <span class="start-dot" aria-hidden="true">${st.done ? icon("check") : ""}</span>
+                        <span class="start-text"><b>${st.label}</b><small>${st.hint}</small></span>
+                        ${st.done ? `<span class="sr-only">(făcut)</span>` : icon("chevron", "start-arrow")}
+                    </button>
+                </li>`).join("")}
+        </ol>
+        <button type="button" class="btn btn-text btn-sm" data-action="start-hide">Ascunde, mă descurc</button>`;
 }
 
 function homeCardHead(id, iconName, title, extra = "") {
@@ -1792,7 +1855,7 @@ function homeAverageHTML() {
     return `
         <div class="azi-avg-top">
             <div class="azi-avg-main">
-                <span class="azi-label">Media generală</span>
+                <span class="azi-label">Media generală ${helpDot("gpa")}</span>
                 <b class="azi-avg-val">${gpa > 0 ? gpa.toFixed(2) : "–"}</b>
                 ${delta}
             </div>
@@ -2193,7 +2256,7 @@ function renderCatalogList() {
                 <span class="cat-dot ${statusTone(d)}" aria-hidden="true"></span>
                 <span class="cat-row-main">
                     <span class="cat-row-name">${sub.priority ? '<span class="cat-star" aria-label="prioritară">★</span>' : ""}${escapeHTML(mat)}</span>
-                    <span class="cat-row-meta">${escapeHTML(meta)}${sub.excludeFromGPA ? ' · <span class="cat-tag">exclusă</span>' : ""}</span>
+                    <span class="cat-row-meta">${escapeHTML(meta)}${sub.excludeFromGPA ? ' · <span class="cat-tag">exclusă</span>' : ""}${inProgramme(mat) ? "" : ' · <span class="cat-tag is-warn">în afara programei</span>'}</span>
                 </span>
                 <span class="cat-row-avg">
                     <b>${hasGrades ? d.exactAvg.toFixed(2) : "–"}</b>
@@ -2252,8 +2315,9 @@ function renderCatalogDetail() {
                 <div class="cat-detail-title-wrap">
                     <div class="cat-title-row">
                         <h3 class="cat-title" id="cat-detail-title" tabindex="-1">${safeMat}</h3>
-                        <span class="badge ${d.statusClass}">${escapeHTML(d.status)}</span>
+                        <span class="badge ${d.statusClass}">${escapeHTML(d.status)}</span>${d.statusClass === "badge-danger" ? helpDot("risk") : ""}
                         ${sub.excludeFromGPA ? `<span class="badge cat-badge-muted">${icon("ban")} Exclusă din medie</span>` : ""}
+                        ${inProgramme(mat) ? "" : `<span class="badge badge-warn" title="Nu e în programa ta (${escapeHTML(programmeLabel())}). Din „Editează” o poți înlocui cu o materie din programă, păstrând notele.">În afara programei</span>`}
                     </div>
                     <p class="subtitle">${fmtNumber(sub.ore)} ${sub.ore === 1 ? "oră" : "ore"} pe săptămână · ținta ${fmtTarget(sub.target)}</p>
                 </div>
@@ -2330,7 +2394,7 @@ function targetHelperHTML(mat, sub) {
 
     return `
         <section class="cat-block" aria-labelledby="cat-target-title">
-            <h4 id="cat-target-title">${icon("target")} Ce îți trebuie</h4>
+            <h4 id="cat-target-title">${icon("target")} Ce îți trebuie ${helpDot("need")}</h4>
             <p class="muted-small">La următoarea evaluare la ${escapeHTML(mat)}:</p>
             <div class="sim-safety-list">
                 ${row(targetPlan.now ? `Păstrezi ținta ${fmtTarget(sub.target)}` : `Ajungi la ținta ${fmtTarget(sub.target)}`,
@@ -2999,7 +3063,7 @@ function dayColumnHTML(date, items, links, today) {
         date === today && "is-today",
         date < today && "is-past",
         (wd === 0 || wd === 6) && "is-weekend",
-        !items.length && !lessons.length && "is-empty"
+        !items.length && !lessons.length && !calPlanHTML(date) && "is-empty"
     ].filter(Boolean).join(" ");
 
     return `
@@ -3190,7 +3254,21 @@ function loadSettingsIntoUI() {
     renderModulesSettings();
     renderBackupStatus();
     renderBuddyPreview();
+    renderProgrammeSettings();
     if (guest.on) renderGuestBar(); // câmpurile rămân blocate pentru vizitatori
+}
+
+/** „Programa ta” (Setări): profilul și clasa, de care depind materiile care se pot adăuga. */
+function renderProgrammeSettings() {
+    const box = $("programme-settings");
+    if (!box) return;
+    const outside = Object.keys(state.subjects).filter(m => !inProgramme(m));
+    box.innerHTML = myProgramme() ? `
+        <p class="programme-now"><b>${escapeHTML(programmeLabel())}</b><small>Limba modernă 2: ${escapeHTML(state.settings.school.lm2)}</small></p>
+        <p class="subtitle">Poți adăuga doar materiile din programa asta, plus dirigenția și un opțional.${outside.length ? ` ${plural(outside.length, "materie e", "materii sunt")} în afara programei: ${escapeHTML(outside.join(", "))}.` : ""}</p>
+        <button type="button" class="btn btn-glass btn-sm mt-3" data-action="programme-change">${icon("graduation")} Schimbă clasa sau profilul</button>` : `
+        <p class="subtitle">Nu ți-ai ales încă programa. Cu ea, materiile se completează singure din planul-cadru al clasei tale.</p>
+        <button type="button" class="btn btn-primary btn-sm mt-3" data-action="programme-change">${icon("graduation")} Alege profilul și clasa</button>`;
 }
 
 /** Mascota de lângă câmpurile „Tu și colegul tău” (Setări), cu numele scris în câmp. */
@@ -4899,7 +4977,19 @@ const SETUP_STEPS = ["Profil", "Materii", "Ținte", "Orar"];
  */
 const LICEU = [9, 10, 11, 12];
 const ROMAN = { 5: "V", 6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X", 11: "XI", 12: "XII" };
-const LM2 = ["Limba franceză", { hint: "limba modernă 2: redenumește dacă faci alta" }];
+const LM2 = ["Limba franceză", { hint: "limba modernă 2" }];
+const LM2_CHOICES = ["Limba franceză", "Limba germană", "Limba spaniolă", "Limba italiană", "Limba rusă", "Limba portugheză"];
+/* Dirigenția: în gimnaziu și în noua clasă a IX-a apare în planul-cadru sub alt nume; la celelalte clase o adăugăm noi. */
+const DIRIG = "Dirigenție";
+const DIRIG_ALIASES = ["Consiliere și dezvoltare personală", "Dezvoltare personală și consiliere pentru carieră"];
+/* Opționalul (curriculum la decizia școlii): un singur loc, căruia elevul îi scrie doar tema. */
+const OPT = "Opțional";
+const isOptionalName = name => name === OPT || String(name).startsWith(`${OPT} · `);
+const optionalTopic = name => isOptionalName(name) && name !== OPT ? name.slice(OPT.length + 3) : "";
+const optionalName = topic => {
+    const t = cleanName(topic, 40);
+    return t ? `${OPT} · ${t}` : OPT;
+};
 
 /**
  * Pornește de la o listă de bază [nume, ore], schimbă orele (`set`), scoate materii (`drop`)
@@ -4968,18 +5058,18 @@ function tehnologicSup(cls, kind) {
             : [["Fizică", 2], ["Chimie", 1]]),
         ["Istorie", servicii && cls === 11 ? 2 : 1], XI_XII_ISTORIE(cls), ["Geografie", servicii && cls === 12 ? 2 : 1],
         [cls === 11 ? "Economie" : "Economie aplicată", servicii ? 2 : 1], ["Religie", 1], ["Educație fizică", 1], ["TIC", 1],
-        ["Cultură de specialitate", 6, { hint: "modulele calificării tale; redenumește-le după orar" }],
+        ["Cultură de specialitate", 6, { hint: "modulele calificării tale, la un loc" }],
         ["Pregătire practică", servicii && cls === 11 ? 6 : 5, { hint: "plus stagiile de practică de la sfârșitul anului" }]
     ]);
 }
 const TEHNOLOGIC_IX = [
-    ["Pregătire teoretică de specialitate", 4, { hint: "modulele calificării tale; redenumește-le după orar" }],
+    ["Pregătire teoretică de specialitate", 4, { hint: "modulele calificării tale, la un loc" }],
     ["Laborator tehnologic și instruire practică", 6, { hint: "plus 5 săptămâni de stagiu de practică pe an" }]
 ];
 const TEHNOLOGIC_X = kind => withLm2(plan(X_VOC, {
     set: { "Matematică": kind === "servicii" ? 2 : 3, "Fizică": kind === "servicii" ? 1 : 2, [LM2[0]]: 2 },
     add: [
-        ["Pregătire de specialitate", 6, { hint: "modulele calificării tale; redenumește-le după orar" }],
+        ["Pregătire de specialitate", 6, { hint: "modulele calificării tale, la un loc" }],
         ["Instruire practică", 5, { hint: "plus 3 săptămâni de stagiu de practică pe an" }]
     ]
 }));
@@ -5030,7 +5120,7 @@ const SETUP_PROFILES = {
             if (cls === 10) return withLm2(plan(X_UMAN));
             return sup(cls, {
                 set: { "Istorie": 3, "Geografie": 2, [SOCIO_SUP(cls)]: cls === 11 ? 2 : 3 },
-                add: [["Matematică", 2], ...(cls === 11 ? [["Sociologie", 2]] : [["Studii sociale", 1, { hint: "sau altă disciplină socio-umană aleasă de școală" }]]),
+                add: [["Matematică", 2], ...(cls === 11 ? [["Sociologie", 2]] : [["Studii sociale", 1, { hint: "disciplina socio-umană a școlii" }]]),
                     ["TIC", cls === 11 ? 2 : 1], ["Educație artistică", 1], ["Educație fizică", 1]]
             });
         }
@@ -5202,13 +5292,11 @@ const SETUP_PROFILES = {
             ["Educație plastică", 1], ["Educație muzicală", 1], ["Educație fizică și sport", 2],
             ["Educație tehnologică și aplicații practice", 1], ["Informatică și TIC", 1], ["Consiliere și dezvoltare personală", 1]
         ])
-    },
-    "alt": { group: "alte", label: "Altă specializare", hint: "pornesc de la o listă goală", subjects: () => [] }
+    }
 };
 
 /** Ce plan stă la baza propunerii, spus pe scurt sub alegerea clasei. */
 function setupPlanNote(profile, cls) {
-    if (profile === "alt") return "";
     if (profile === "gimnaziu") return "După planul-cadru pentru gimnaziu din 2016 (OMENCS 3590/2016), încă în vigoare.";
     const group = SETUP_PROFILES[profile]?.group;
     const special = group === "vocational" || group === "tehnologic"
@@ -5241,6 +5329,7 @@ function openSetup(step = 0) {
         profile: "",
         cls: 9,
         variant: "",
+        lm2: s.school.lm2,
         rows: [],
         target: s.goals.targetGPA,
         risk: s.calc.riskThreshold,
@@ -5249,6 +5338,12 @@ function openSetup(step = 0) {
         preset: matchingModulePreset(s.modules) === "custom" ? "keep" : matchingModulePreset(s.modules),
         returnFocus: document.activeElement
     };
+    // Programa aleasă înainte rămâne selectată (de ex. când elevul trece în clasa următoare)
+    const mine = myProgramme();
+    if (mine) {
+        Object.assign(ui.setup, { profile: mine.profile, cls: mine.cls || ui.setup.cls, variant: mine.variant });
+        ui.setup.rows = setupRowsFor(mine.profile, ui.setup.cls, mine.variant, ui.setup.lm2);
+    }
     closeQuickAdd({ restoreFocus: false });
     closeMoreMenu({ restoreFocus: false });
     closeCmdk({ restoreFocus: false });
@@ -5267,12 +5362,55 @@ function closeSetup() {
     if (back && document.contains(back) && back !== document.body) back.focus();
 }
 
-function setupRowsFor(profile, cls, variantId) {
+/** Materiile din programa unui profil și a unei clase: [{ name, ore, hint, kind }] (kind: subject | lm2 | dirig | opt). */
+function programmeRows(profile, cls, variantId, lm2 = LM2_CHOICES[0]) {
     const p = SETUP_PROFILES[profile];
+    if (!p) return [];
     const variant = p.variants ? (p.variants.find(v => v.id === variantId) || p.variants[0]) : null;
-    return p.subjects({ cls, variant }).map(([name, ore, opt = {}]) => ({
-        name, ore, on: !opt.off, hint: opt.hint || "", exists: Boolean(findSubjectName(name))
-    }));
+    const rows = p.subjects({ cls, variant }).map(([name, ore, opt = {}]) => {
+        if (DIRIG_ALIASES.includes(name)) return { name: DIRIG, ore, hint: `în planul-cadru: ${name}`, kind: "dirig", off: false };
+        if (name === LM2[0]) return { name: lm2, ore, hint: "limba modernă 2: alege-o pe a ta", kind: "lm2", off: Boolean(opt.off) };
+        return { name, ore, hint: opt.hint || "", kind: "subject", off: Boolean(opt.off) };
+    });
+    if (!rows.some(r => r.kind === "dirig")) rows.push({ name: DIRIG, ore: 1, hint: cls >= 9 ? "ora de dirigenție (de obicei fără note, nu intră în medie)" : "ora de dirigenție", kind: "dirig", off: false });
+    rows.push({ name: OPT, ore: 1, hint: "ora la decizia școlii: scrie ce opțional faci", kind: "opt", off: true });
+    return rows;
+}
+
+function setupRowsFor(profile, cls, variantId, lm2) {
+    return programmeRows(profile, cls, variantId, lm2).map(r => {
+        const existing = r.kind === "opt" ? Object.keys(state.subjects).find(isOptionalName) : findSubjectName(r.name);
+        return { ...r, on: !r.off, topic: "", exists: Boolean(existing), shown: existing || r.name };
+    });
+}
+
+/** Programa salvată a elevului, sau null dacă nu și-a ales-o încă (ex. date vechi sau un backup importat). */
+function myProgramme() {
+    const sc = state.settings.school;
+    return sc.profile && SETUP_PROFILES[sc.profile] ? sc : null;
+}
+function myProgrammeRows() {
+    const sc = myProgramme();
+    return sc ? programmeRows(sc.profile, sc.cls, sc.variant, sc.lm2) : [];
+}
+function programmeLabel() {
+    const sc = myProgramme();
+    if (!sc) return "";
+    const p = SETUP_PROFILES[sc.profile];
+    const variant = p.variants?.find(v => v.id === sc.variant);
+    return [p.label, variant && variant.id !== p.variants[0].id ? variant.label : "", p.classes ? `clasa a ${ROMAN[sc.cls]}-a` : ""].filter(Boolean).join(" · ");
+}
+/** O materie e în programă? Fără programă aleasă nu judecăm (nu marcăm nimic). */
+function inProgramme(name) {
+    if (!myProgramme() || isOptionalName(name)) return true;
+    const low = String(name).toLocaleLowerCase("ro");
+    return myProgrammeRows().some(r => r.name.toLocaleLowerCase("ro") === low)
+        || DIRIG_ALIASES.some(a => a.toLocaleLowerCase("ro") === low);
+}
+/** Ce mai poate adăuga: materiile din programă care lipsesc din catalog (+ opționalul, dacă nu-l are). */
+function missingProgrammeRows() {
+    const hasOpt = Object.keys(state.subjects).some(isOptionalName);
+    return myProgrammeRows().filter(r => r.kind === "opt" ? !hasOpt : !findSubjectName(r.name) && !(r.kind === "dirig" && DIRIG_ALIASES.some(a => findSubjectName(a))));
 }
 
 /** Numele unei materii existente, fără să conteze literele mari/mici. */
@@ -5402,13 +5540,16 @@ function setupSubjectsHTML() {
     const hours = on.reduce((s, r) => s + r.ore, 0);
     return `
         <h2 id="setup-title" tabindex="-1">Materiile tale${SETUP_PROFILES[ui.setup.profile]?.classes ? ` · clasa a ${ROMAN[ui.setup.cls]}-a` : ""}</h2>
-        <p class="setup-lead">Bifează ce ai în orar și corectează orele pe săptămână dacă diferă. Orele propuse sunt orientative; contează doar la media ponderată.</p>
+        <p class="setup-lead">Bifează ce ai în orar și corectează orele pe săptămână dacă diferă. Alege-ți limba modernă 2 și, dacă ai un opțional, scrie ce e.</p>
         <ul class="setup-rows">
             ${rows.map((r, i) => `
-                <li class="setup-row ${r.on ? "" : "is-off"} ${r.exists ? "is-existing" : ""}">
+                <li class="setup-row ${r.on ? "" : "is-off"} ${r.exists ? "is-existing" : ""}" data-name="${escapeHTML(r.exists ? r.shown : r.name)}" data-kind="${r.kind}">
                     <input type="checkbox" class="setup-check" data-i="${i}" ${r.on ? "checked" : ""} ${r.exists ? "disabled" : ""} aria-label="${escapeHTML(`Include ${r.name}`)}">
                     <span class="setup-name-cell">
-                        <input type="text" class="glass-input setup-name" data-i="${i}" value="${escapeHTML(r.name)}" maxlength="60" ${r.exists ? "readonly" : ""} aria-label="Numele materiei">
+                        ${r.exists ? `<b class="setup-name-text">${escapeHTML(r.shown)}</b>`
+                            : r.kind === "lm2" ? `<select class="glass-select setup-lm2" data-i="${i}" aria-label="Limba modernă 2">${LM2_CHOICES.map(l => `<option ${l === r.name ? "selected" : ""}>${escapeHTML(l)}</option>`).join("")}</select>`
+                            : r.kind === "opt" ? `<span class="setup-opt"><b class="setup-name-text">${OPT}</b><input type="text" class="glass-input setup-opt-topic" data-i="${i}" value="${escapeHTML(r.topic)}" maxlength="40" placeholder="ce opțional? (ex: Educație financiară)" aria-label="Tema opționalului"></span>`
+                            : `<b class="setup-name-text">${escapeHTML(r.name)}</b>`}
                         ${r.hint && !r.exists ? `<small class="setup-row-hint">${escapeHTML(r.hint)}</small>` : ""}
                     </span>
                     ${r.exists ? `<span class="setup-exists">există deja</span>` : `
@@ -5419,10 +5560,7 @@ function setupSubjectsHTML() {
                     </span>`}
                 </li>`).join("")}
         </ul>
-        <form class="setup-add" data-setup-add>
-            <input type="text" class="glass-input" id="setup-new" maxlength="60" placeholder="Altă materie (ex: Economie)" aria-label="Adaugă o materie" ${rows.length ? "" : "data-autofocus"}>
-            <button type="submit" class="btn btn-glass">${icon("plus")} Adaugă</button>
-        </form>
+        <p class="setup-note">${icon("info")} ${helpDot("programme")} Lista vine din planul-cadru al clasei tale; poți scoate ce nu faci și corecta orele. Alte materii nu se pot adăuga.</p>
         <p class="setup-count">${plural(on.length, "materie nouă", "materii noi")} · ${plural(hours, "oră", "ore")} pe săptămână · Purtarea e deja în catalog</p>`;
 }
 
@@ -5488,7 +5626,7 @@ function setupRowsError() {
     const seen = new Set();
     for (const r of ui.setup.rows) {
         if (!r.on || r.exists) continue;
-        const name = r.name.trim().replace(/\s+/g, " ");
+        const name = (r.kind === "opt" ? optionalName(r.topic) : r.name).trim().replace(/\s+/g, " ");
         if (!name) return "O materie bifată nu are nume.";
         if (name === "__proto__" || name === PURTARE_KEY || isLegacyPurtareName(name)) return "Purtarea e deja în catalog; nu o adăuga ca materie.";
         const low = name.toLocaleLowerCase("ro");
@@ -5519,12 +5657,14 @@ function finishSetup(withTimetable) {
     if (!st) return;
     const added = [];
     st.rows.forEach(r => {
-        const name = r.name.trim().replace(/\s+/g, " ");
+        const name = (r.kind === "opt" ? optionalName(r.topic) : r.name).trim().replace(/\s+/g, " ");
         if (!r.on || r.exists || !name || findSubjectName(name)) return;
-        state.subjects[name] = { ore: r.ore, target: st.target, grades: [], priority: false, excludeFromGPA: false };
+        // dirigenția din liceu nu are note: nu trage media în jos
+        state.subjects[name] = { ore: r.ore, target: st.target, grades: [], priority: false, excludeFromGPA: r.kind === "dirig" && st.cls >= 9 };
         added.push(name);
     });
     const s = state.settings;
+    if (SETUP_PROFILES[st.profile]) s.school = { profile: st.profile, cls: SETUP_PROFILES[st.profile].classes ? st.cls : 0, variant: st.variant || "", lm2: st.lm2 || LM2_CHOICES[0] };
     s.goals.targetGPA = st.target;
     s.goals.minGPA = Math.min(s.goals.minGPA, st.target);
     s.calc.riskThreshold = st.risk;
@@ -5792,10 +5932,20 @@ function planGoals() {
 }
 
 /* ---------- desenare ---------- */
+/** Ce faci concret într-o sesiune, pe scurt (apare și în cronometru). */
+const PLAN_HOWTO = {
+    learn: "Citește lecția, fă-ți o schemă și scrie 3 întrebări la care știi răspunsul.",
+    practice: "Rezolvă exerciții de tipul celor de la test; verifică-te la final.",
+    review: "Recapitulează schema și greșelile tale; încearcă 2–3 exerciții rapide.",
+    homework: "Fă tema de la cap la coadă, apoi recitește-o o dată.",
+    free: "Lucrează la ce simți că ai nevoie la materia asta."
+};
+
 function planItemHTML(it, { compact = false } = {}) {
     const k = PLAN_KINDS[it.kind];
     const id = escapeHTML(it.id);
     const label = `${it.mat}: ${k.label}, ${it.min} minute`;
+    const today = getLocalDateKey();
     return `
         <li class="plan-item ${it.done ? "is-done" : ""} kind-${it.kind}">
             <label class="plan-check">
@@ -5804,8 +5954,10 @@ function planItemHTML(it, { compact = false } = {}) {
             </label>
             <span class="plan-main">
                 <b>${escapeHTML(it.mat)}${subjectPref(it.mat) === "fav" ? ` <span class="plan-fav-star" title="Îți place">${icon("star")}</span>` : ""}</b>
-                <small><span class="plan-kind">${icon(k.icon)} ${k.label}</span> · ${it.min} min${it.reason ? ` · ${escapeHTML(it.reason)}` : ""}</small>
+                <small><span class="plan-kind">${icon(k.icon)} ${k.label}</span> · ${it.min} min</small>
+                ${it.reason && !compact ? `<small class="plan-why">${icon("info")} De ce: ${escapeHTML(it.reason)}</small>` : ""}
             </span>
+            ${!it.done && it.date <= addDays(today, 0) ? `<button type="button" class="btn btn-glass btn-sm plan-start" data-action="focus-start" data-id="${id}" aria-label="${escapeHTML(`Începe: ${label}`)}">${icon("timer")} <span>Începe</span></button>` : ""}
             ${compact ? "" : `
                 <span class="plan-tools">
                     <button type="button" class="icon-btn btn btn-text" data-action="plan-move" data-id="${id}" aria-label="${escapeHTML(`Mută: ${label}`)}" title="Mută în altă zi">${icon("arrows-v")}</button>
@@ -5820,35 +5972,45 @@ function planDayLabel(date, today) {
     return n === 0 ? `Azi · ${wd}` : n === 1 ? `Mâine · ${wd}` : longDateLabel(date);
 }
 
+const PLAN_CHIPS_SCHOOL = [15, 30, 45, 60, 90];
+const PLAN_CHIPS_WEEKEND = [0, 30, 60, 90, 120];
+const planMinFmt = v => v === 0 ? "deloc" : v < 60 ? `${v} min` : `${Math.floor(v / 60)} h${v % 60 ? ` ${v % 60}` : ""}`;
+
 function planPrefsHTML(prefix = "plan") {
     const p = state.plan.prefs;
-    const opts = (list, value, fmt) => list.map(v => `<option value="${v}" ${v === value ? "selected" : ""}>${fmt(v)}</option>`).join("");
-    const minFmt = v => v === 0 ? "deloc" : v < 60 ? `${v} min` : `${Math.floor(v / 60)} h${v % 60 ? ` ${v % 60} min` : ""}`;
     const near = (list, v) => list.reduce((best, x) => Math.abs(x - v) < Math.abs(best - v) ? x : best, list[0]);
+    const chips = (name, list, value, label) => `
+        <div class="plan-q">
+            <span class="plan-q-label" id="${prefix}-${name}-l">${label}</span>
+            <div class="plan-chips" role="radiogroup" aria-labelledby="${prefix}-${name}-l">
+                ${list.map(v => `<label class="plan-chip"><input type="radio" name="${prefix}-${name}" value="${v}" ${v === near(list, value) ? "checked" : ""}><span>${planMinFmt(v)}</span></label>`).join("")}
+            </div>
+        </div>`;
     return `
         <div class="plan-prefs">
-            <div class="form-group">
-                <label for="${prefix}-school">În zilele de școală pot învăța</label>
-                <select id="${prefix}-school" class="glass-select">${opts(PLAN_MINUTES, near(PLAN_MINUTES, p.school), minFmt)}</select>
-            </div>
-            <div class="form-group">
-                <label for="${prefix}-weekend">În weekend și în vacanță</label>
-                <select id="${prefix}-weekend" class="glass-select">${opts(PLAN_MINUTES, near(PLAN_MINUTES, p.weekend), minFmt)}</select>
-            </div>
-            <div class="form-group">
-                <label for="${prefix}-session">O sesiune durează</label>
-                <select id="${prefix}-session" class="glass-select">${opts(PLAN_SESSIONS, p.session, v => `${v} min`)}</select>
-            </div>
-            <div class="form-group">
-                <label for="${prefix}-rest">Zi liberă</label>
-                <select id="${prefix}-rest" class="glass-select">
-                    <option value="-1" ${p.rest === -1 ? "selected" : ""}>Fără zi liberă</option>
-                    ${WEEKDAY_ORDER.map(wd => `<option value="${wd}" ${p.rest === wd ? "selected" : ""}>${WEEKDAY_LONG[wd]}</option>`).join("")}
-                </select>
-            </div>
-            <label class="check-row plan-cal-row"><input type="checkbox" id="${prefix}-calendar" ${p.calendar ? "checked" : ""}> Arată sesiunile și în Calendar</label>
+            ${chips("school", PLAN_CHIPS_SCHOOL, p.school, "Cât poți învăța într-o zi de școală?")}
+            ${chips("weekend", PLAN_CHIPS_WEEKEND, p.weekend, "Și în weekend sau în vacanță?")}
         </div>
-        ${planSubjectPrefsHTML(prefix)}`;
+        <details class="plan-more">
+            <summary>Mai multe opțiuni <small>(cât ține o sesiune, zi liberă, materiile preferate)</small></summary>
+            <div class="plan-more-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="${prefix}-session">O sesiune durează</label>
+                        <select id="${prefix}-session" class="glass-select">${PLAN_SESSIONS.map(v => `<option value="${v}" ${v === p.session ? "selected" : ""}>${v} min</option>`).join("")}</select>
+                    </div>
+                    <div class="form-group">
+                        <label for="${prefix}-rest">Zi liberă</label>
+                        <select id="${prefix}-rest" class="glass-select">
+                            <option value="-1" ${p.rest === -1 ? "selected" : ""}>Fără zi liberă</option>
+                            ${WEEKDAY_ORDER.map(wd => `<option value="${wd}" ${p.rest === wd ? "selected" : ""}>${WEEKDAY_LONG[wd]}</option>`).join("")}
+                        </select>
+                    </div>
+                </div>
+                <label class="check-row plan-cal-row"><input type="checkbox" id="${prefix}-calendar" ${p.calendar ? "checked" : ""}> Arată sesiunile și în Calendar</label>
+                ${planSubjectPrefsHTML(prefix)}
+            </div>
+        </details>`;
 }
 
 const PLAN_PREFS = [
@@ -5877,8 +6039,9 @@ function planSubjectPrefsHTML(prefix) {
 
 function readPlanPrefs(prefix = "plan") {
     const p = state.plan.prefs;
-    p.school = clampInteger(field(`${prefix}-school`), 0, 600, p.school);
-    p.weekend = clampInteger(field(`${prefix}-weekend`), 0, 600, p.weekend);
+    const picked = name => document.querySelector(`input[name="${prefix}-${name}"]:checked`)?.value ?? field(`${prefix}-${name}`);
+    p.school = clampInteger(picked("school"), 0, 600, p.school);
+    p.weekend = clampInteger(picked("weekend"), 0, 600, p.weekend);
     p.session = PLAN_SESSIONS.includes(Number(field(`${prefix}-session`))) ? Number(field(`${prefix}-session`)) : p.session;
     const rest = Number(field(`${prefix}-rest`));
     p.rest = Number.isInteger(rest) && rest >= -1 && rest <= 6 ? rest : -1;
@@ -5912,45 +6075,79 @@ function renderPlan() {
         return;
     }
     const today = getLocalDateKey();
+    const days = planDays(today);
+    if (!days.includes(ui.planDay)) ui.planDay = today;
+    const sel = ui.planDay;
     const prog = planWeekProgress(today);
     const streak = planStreak(today);
     const goals = planGoals();
-    const days = planDays(today);
     const mod = moduleAt(today);
     const pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
+    const todayItems = planItemsOn(today);
+    const todayDone = todayItems.filter(it => it.done).length;
+    const next = todayItems.find(it => !it.done);
+    const links = gradeLinks();
+    const eventsOn = date => occurrencesBetween(date, date).filter(o => !isOccurrenceDone(o.ev, o.date, links));
+    const ring = (done, total, size) => {
+        const r = (size - 8) / 2, c = 2 * Math.PI * r, part = total ? done / total : 0;
+        return `<svg class="plan-ring" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
+            <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="plan-ring-bg"/>
+            <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="plan-ring-fg" stroke-dasharray="${(c * part).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/></svg>`;
+    };
+    const selItems = planItemsOn(sel);
+    const selMinutes = planMinutesOn(sel);
+    const selEvents = eventsOn(sel);
 
     box.innerHTML = `
+        <section class="glass-card plan-today" aria-labelledby="plan-today-title">
+            <div class="plan-today-ring">${ring(todayDone, todayItems.length, 92)}<b>${todayItems.length ? `${todayDone}/${todayItems.length}` : "–"}</b></div>
+            <div class="plan-today-main">
+                <h3 id="plan-today-title">${todayItems.length
+                    ? todayDone === todayItems.length ? `Gata pe azi${firstName() ? `, ${escapeHTML(firstName())}` : ""}! 🎉` : `Azi ai ${plural(todayItems.length - todayDone, "sesiune", "sesiuni")} (${todayItems.filter(it => !it.done).reduce((n, it) => n + it.min, 0)} min)`
+                    : "Azi n-ai nimic în plan"}</h3>
+                <p class="subtitle">${next
+                    ? `Urmează <b>${escapeHTML(next.mat)}</b>: ${escapeHTML(PLAN_KINDS[next.kind].label.toLocaleLowerCase("ro"))}, ${next.min} min${next.reason ? `, ${escapeHTML(next.reason)}` : ""}.`
+                    : todayItems.length ? "Ai bifat tot. Restul zilei e al tău." : "Timp liber sau de citit ce-ți place."}</p>
+                <div class="plan-today-actions">
+                    ${next ? `<button type="button" class="btn btn-primary" data-action="focus-start" data-id="${escapeHTML(next.id)}">${icon("timer")} Începe acum · ${next.min} min</button>` : ""}
+                    <span class="plan-chip-stat" title="Zile la rând în care ai bifat tot">${icon("flame")} ${plural(streak, "zi", "zile")} la rând</span>
+                    <span class="plan-chip-stat" title="Cât din săptămână ai făcut">${icon("trend-up")} ${pct}% din săptămână</span>
+                </div>
+            </div>
+        </section>
+
+        <nav class="plan-strip" aria-label="Zilele săptămânii">
+            ${days.map(date => {
+                const items = planItemsOn(date);
+                const used = items.reduce((n, it) => n + it.min, 0);
+                const minutes = planMinutesOn(date);
+                const load = minutes ? Math.min(1, used / minutes) : 0;
+                const done = items.length && items.every(it => it.done);
+                const tests = eventsOn(date).filter(o => NEEDS_GRADE.has(o.ev.type)).length;
+                const d = parseDateKey(date);
+                return `
+                <button type="button" class="plan-strip-day ${date === sel ? "is-on" : ""} ${date === today ? "is-today" : ""} ${done ? "is-done" : ""} ${minutes === 0 ? "is-rest" : ""}" data-action="plan-day" data-date="${date}" aria-pressed="${date === sel}" aria-label="${escapeHTML(`${planDayLabel(date, today)}: ${items.length ? `${plural(items.length, "sesiune", "sesiuni")}, ${used} minute` : minutes === 0 ? "zi liberă" : "nimic programat"}${tests ? `, ${plural(tests, "test", "teste")}` : ""}`)}">
+                    <span class="plan-strip-wd">${date === today ? "Azi" : WEEKDAY_SHORT[d.getDay()]}</span>
+                    <b class="plan-strip-n">${d.getDate()}</b>
+                    <span class="plan-strip-load" aria-hidden="true"><i style="height:${Math.round(load * 100)}%"></i></span>
+                    <span class="plan-strip-meta" aria-hidden="true">${done ? icon("check") : items.length ? `${used}′` : minutes === 0 ? "liber" : "–"}</span>
+                    ${tests ? `<span class="plan-strip-test" aria-hidden="true" title="test">${tests}</span>` : ""}
+                </button>`;
+            }).join("")}
+        </nav>
+
         <div class="plan-grid">
-            <section class="glass-card plan-week" aria-labelledby="plan-week-title">
-                <div class="azi-card-head"><h3 id="plan-week-title">${icon("calendar-check")} Săptămâna mea</h3>
-                    <span class="cat-count">${prog.total ? `${prog.done} din ${prog.total}` : "liber"}</span></div>
-                ${days.map(date => {
-                    const items = planItemsOn(date);
-                    const minutes = planMinutesOn(date);
-                    const used = items.reduce((n, it) => n + it.min, 0);
-                    return `
-                    <div class="plan-day ${date === today ? "is-today" : ""}">
-                        <div class="plan-day-head">
-                            <h4>${escapeHTML(planDayLabel(date, today))}</h4>
-                            <span class="plan-day-time">${minutes === 0 && !items.length ? "zi liberă" : `${used} / ${minutes} min`}</span>
-                        </div>
-                        ${items.length ? `<ul class="plan-list">${items.map(it => planItemHTML(it)).join("")}</ul>`
-                            : `<p class="plan-empty">${minutes === 0 ? "Odihnă. Te-ai descurcat bine săptămâna asta." : "Nimic programat: timp liber sau de citit ce-ți place."}</p>`}
-                    </div>`;
-                }).join("")}
+            <section class="glass-card plan-week" aria-labelledby="plan-day-title">
+                <div class="azi-card-head"><h3 id="plan-day-title">${icon("calendar-check")} ${escapeHTML(planDayLabel(sel, today))}</h3>
+                    <span class="cat-count">${selMinutes === 0 && !selItems.length ? "zi liberă" : `${selItems.reduce((n, it) => n + it.min, 0)} din ${selMinutes} min`}</span></div>
+                ${selEvents.length ? `<p class="plan-day-events">${icon("flag")} În ziua asta: ${selEvents.map(o => escapeHTML(o.ev.title || o.ev.type)).join(", ")}</p>` : ""}
+                ${selItems.length ? `<ul class="plan-list">${selItems.map(it => planItemHTML(it)).join("")}</ul>`
+                    : `<p class="plan-empty">${selMinutes === 0 ? "Zi liberă: odihnește-te, îți prinde bine." : "Nimic programat: timp liber sau de citit ce-ți place."}</p>`}
+                <button type="button" class="btn btn-text btn-sm plan-add-here" data-action="plan-add" data-date="${sel}">${icon("plus")} Adaugă o sesiune în ziua asta</button>
             </section>
             <div class="plan-side">
-                <section class="glass-card plan-progress" aria-labelledby="plan-progress-title">
-                    <div class="azi-card-head"><h3 id="plan-progress-title">${icon("trend-up")} Progres</h3></div>
-                    <div class="plan-stats">
-                        <div><b>${pct}%</b><small>din săptămână</small></div>
-                        <div><b>${streak}</b><small>${streak === 1 ? "zi la rând" : "zile la rând"}</small></div>
-                        <div><b>${prog.doneMinutes}</b><small>minute învățate</small></div>
-                    </div>
-                    <div class="plan-bar" role="progressbar" aria-label="Progresul săptămânii" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
-                </section>
                 <section class="glass-card plan-goals" aria-labelledby="plan-goals-title">
-                    <div class="azi-card-head"><h3 id="plan-goals-title">${icon("target")} Ținte pe modul</h3></div>
+                    <div class="azi-card-head"><h3 id="plan-goals-title">${icon("target")} Ținte pe modul ${helpDot("target")}</h3></div>
                     ${mod ? `<p class="subtitle">Până la sfârșitul modulului ${mod.n} (${escapeHTML(longDateLabel(mod.end).split(", ")[1])}).</p>` : ""}
                     ${goals.length ? `<ul class="plan-goal-list">${goals.map(g => `
                         <li><button type="button" class="azi-watch-row" data-action="open-subject" data-mat="${escapeHTML(g.mat)}">
@@ -5963,6 +6160,16 @@ function renderPlan() {
                         </button></li>`).join("")}</ul>`
                         : emptyNote(Object.keys(state.subjects).length ? "Toate materiile sunt la țintă. Planul se ocupă doar de teste și teme." : "Adaugă-ți materiile ca să-ți pot face ținte.")}
                 </section>
+                <details class="glass-card plan-how">
+                    <summary>${icon("bulb")} Cum îți fac planul?</summary>
+                    <ul>
+                        <li><b>Înainte de un test:</b> învăți cu ~4 zile înainte, exersezi cu 2 zile înainte și recapitulezi în ajun.</li>
+                        <li><b>O temă:</b> o sesiune în ziua dinainte.</li>
+                        <li><b>O materie la risc:</b> 2 sesiuni pe săptămână, de preferat în ajunul orei ei.</li>
+                        <li><b>Sub țintă:</b> o sesiune pe săptămână (două dacă e prioritară).</li>
+                        <li>Nu trec niciodată de timpul pe care mi l-ai dat. Ce bifezi sau muți rămâne cum ai lăsat.</li>
+                    </ul>
+                </details>
             </div>
         </div>`;
 }
@@ -5985,6 +6192,93 @@ function homePlanHTML(today) {
                ${done === items.length ? `<p class="plan-done-line">${icon("check-circle")} Gata pe azi! ${planStreak(today) > 1 ? `${planStreak(today)} zile la rând.` : ""}</p>` : ""}`
             : `<p class="azi-more-line">Azi n-ai nimic în plan.${next ? ` Următoarea sesiune: ${escapeHTML(next.mat)}, ${escapeHTML(relativeDay(next.date))}.` : ""}</p>`}
         <button type="button" class="btn btn-text btn-sm" data-action="nav" data-tab="tab-plan">${icon("calendar-check")} Tot planul</button>`;
+}
+
+/* ---------- cronometrul de concentrare ---------- */
+/* „Începe” deschide un cronometru pentru sesiune; la final (sau cu „Am terminat”) sesiunea se bifează.
+   Ecranul telefonului rămâne aprins cât merge cronometrul (unde browserul permite). */
+const focusRun = { it: null, total: 0, startedAt: 0, elapsed: 0, paused: false, timer: 0, wake: null, title: "" };
+
+function startFocus(id) {
+    const it = findPlanItem(id);
+    if (!it || it.done) return;
+    const k = PLAN_KINDS[it.kind];
+    Object.assign(focusRun, { it, total: it.min * 60000, startedAt: Date.now(), elapsed: 0, paused: false, title: document.title });
+    openModal({
+        title: `${it.mat} · ${k.label}`,
+        confirmText: "Am terminat",
+        cancelText: "Renunț",
+        body: `
+            <div class="focus" id="focus-timer">
+                <div class="focus-dial">
+                    <svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="88" class="focus-bg"/><circle cx="100" cy="100" r="88" class="focus-fg" id="focus-arc" transform="rotate(-90 100 100)"/></svg>
+                    <div class="focus-time"><b id="focus-left" role="timer" aria-live="off">${it.min}:00</b><small id="focus-state">rămase</small></div>
+                </div>
+                <p class="focus-how">${icon(k.icon)} ${escapeHTML(PLAN_HOWTO[it.kind] || PLAN_HOWTO.free)}</p>
+                ${it.reason ? `<p class="focus-why">De ce acum: ${escapeHTML(it.reason)}</p>` : ""}
+                <div class="focus-tools">
+                    <button type="button" class="btn btn-glass" data-action="focus-pause" id="focus-pause">${icon("clock")} Pauză</button>
+                    <button type="button" class="btn btn-glass" data-action="focus-more">${icon("plus")} 5 min</button>
+                </div>
+                <p class="focus-tip">Pune telefonul cu ecranul în jos și nu te uita la notificări până la final. Poți închide fereastra oricând.</p>
+            </div>`,
+        onConfirm: () => finishFocus(true)
+    });
+    if (!$("focus-timer")) return; // (vizitator: s-a deschis autentificarea)
+    clearInterval(focusRun.timer);
+    focusRun.timer = setInterval(tickFocus, 500);
+    tickFocus();
+    navigator.wakeLock?.request?.("screen").then(lock => { focusRun.wake = lock; }).catch(() => {});
+}
+
+function focusLeft() {
+    const ran = focusRun.elapsed + (focusRun.paused ? 0 : Date.now() - focusRun.startedAt);
+    return Math.max(0, focusRun.total - ran);
+}
+
+function tickFocus() {
+    const box = $("focus-timer");
+    if (!box || !focusRun.it) { stopFocus(); return; }
+    const left = focusLeft();
+    const m = Math.floor(left / 60000), sec = Math.floor(left % 60000 / 1000);
+    const text = `${m}:${String(sec).padStart(2, "0")}`;
+    $("focus-left").textContent = text;
+    const c = 2 * Math.PI * 88;
+    $("focus-arc").setAttribute("stroke-dasharray", `${(c * (1 - left / focusRun.total)).toFixed(1)} ${c.toFixed(1)}`);
+    document.title = `${focusRun.paused ? "⏸" : "⏱"} ${text} · ${focusRun.it.mat}`;
+    if (left <= 0) finishFocus(true, { auto: true });
+}
+
+function toggleFocusPause() {
+    if (!focusRun.it) return;
+    if (focusRun.paused) { focusRun.startedAt = Date.now(); focusRun.paused = false; }
+    else { focusRun.elapsed += Date.now() - focusRun.startedAt; focusRun.paused = true; }
+    $("focus-pause").innerHTML = focusRun.paused ? `${icon("timer")} Continuă` : `${icon("clock")} Pauză`;
+    $("focus-state").textContent = focusRun.paused ? "în pauză" : "rămase";
+    tickFocus();
+}
+
+function stopFocus() {
+    clearInterval(focusRun.timer);
+    focusRun.timer = 0;
+    if (focusRun.title) document.title = focusRun.title;
+    focusRun.wake?.release?.().catch?.(() => {});
+    focusRun.wake = null;
+    focusRun.it = null;
+}
+
+function finishFocus(done, { auto = false } = {}) {
+    const it = focusRun.it;
+    stopFocus();
+    closeActionModal();
+    if (!it || !done || !findPlanItem(it.id)) return;
+    it.done = true;
+    refresh();
+    const today = getLocalDateKey();
+    const left = state.plan.items.filter(x => x.date === today && !x.done);
+    buddyReact(left.length ? "happy" : "love");
+    if (auto) { try { navigator.vibrate?.([120, 80, 120]); } catch (_) { /* fără vibrație */ } }
+    showToast(left.length ? `✅ Bravo! ${it.mat} e bifată. Mai ai ${plural(left.length, "sesiune", "sesiuni")} azi.` : "🎉 Gata planul de azi!");
 }
 
 /* ---------- acțiuni ---------- */
@@ -6037,7 +6331,7 @@ function deletePlanItem(id) {
     });
 }
 
-function openPlanAdd() {
+function openPlanAdd(preDate = "") {
     const mats = Object.keys(state.subjects);
     if (!mats.length) {
         showToast("⚠️ Adaugă întâi o materie în catalog.");
@@ -6051,7 +6345,7 @@ function openPlanAdd() {
             <div class="form-group"><label for="plan-add-mat">Materia</label>
                 <select id="plan-add-mat" class="glass-select">${mats.map(m => `<option>${escapeHTML(m)}</option>`).join("")}</select></div>
             <div class="form-group"><label for="plan-add-day">Ziua</label>
-                <select id="plan-add-day" class="glass-select">${planDays(today).map(d => `<option value="${d}">${escapeHTML(planDayLabel(d, today))}</option>`).join("")}</select></div>
+                <select id="plan-add-day" class="glass-select">${planDays(today).map(d => `<option value="${d}" ${d === preDate ? "selected" : ""}>${escapeHTML(planDayLabel(d, today))}</option>`).join("")}</select></div>
             <div class="form-group"><label for="plan-add-kind">Ce faci</label>
                 <select id="plan-add-kind" class="glass-select">${Object.entries(PLAN_KINDS).map(([k, v]) => `<option value="${k}" ${k === "practice" ? "selected" : ""}>${v.label}</option>`).join("")}</select></div>
             <div class="form-group"><label for="plan-add-min">Cât timp</label>
@@ -6106,7 +6400,15 @@ const PLAN_ACTIONS = {
     "plan-move": el => openPlanMove(el.dataset.id),
     "plan-move-to": el => movePlanItem(el.dataset.id, el.dataset.date),
     "plan-delete": el => deletePlanItem(el.dataset.id),
-    "plan-add": () => openPlanAdd(),
+    "plan-add": el => openPlanAdd(el?.dataset?.date || ""),
+    "plan-day": el => {
+        ui.planDay = el.dataset.date;
+        renderPlan();
+        document.querySelector(`.plan-strip-day[data-date="${el.dataset.date}"]`)?.focus({ preventScroll: true });
+    },
+    "focus-start": el => startFocus(el.dataset.id),
+    "focus-pause": () => toggleFocusPause(),
+    "focus-more": () => { if (focusRun.it) { focusRun.total += 5 * 60000; tickFocus(); } },
     "plan-prefs": () => openPlanPrefs(),
     "plan-rebuild": () => rebuildPlanNow(),
     "plan-create": () => {
@@ -6481,6 +6783,9 @@ function handleTourKey(event) {
 
 const SETUP_ACTIONS = {
     "setup-open": () => openSetup(0),
+    "programme-change": () => openSetup(1),
+    "help": el => openHelp(el.dataset.key),
+    "start-hide": () => { try { localStorage.setItem(START_HIDE_KEY, "1"); } catch (_) { /* fără stocare */ } renderDashboard(); },
     "setup-skip": () => {
         markSetupDone();
         closeSetup();
@@ -6505,7 +6810,7 @@ const SETUP_ACTIONS = {
         // Clasa rămâne aleasă când treci de la un profil la altul, dacă există și la noul profil.
         if (prof.classes && !prof.classes.includes(st.cls)) st.cls = prof.classes[0];
         if (prof.variants && !prof.variants.some(v => v.id === st.variant)) st.variant = prof.variants[0].id;
-        st.rows = setupRowsFor(st.profile, st.cls, st.variant);
+        st.rows = setupRowsFor(st.profile, st.cls, st.variant, st.lm2);
         renderSetup();
         $("setup-body").querySelector(`[data-id="${st.profile}"]`)?.focus({ preventScroll: true });
         $("setup-body").querySelector(".setup-extra")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
@@ -6515,7 +6820,7 @@ const SETUP_ACTIONS = {
         const prof = SETUP_PROFILES[st.profile];
         if (!prof?.variants?.some(v => v.id === el.dataset.variant)) return;
         st.variant = el.dataset.variant;
-        st.rows = setupRowsFor(st.profile, st.cls, st.variant);
+        st.rows = setupRowsFor(st.profile, st.cls, st.variant, st.lm2);
         renderSetup();
         $("setup-body").querySelector(`[data-variant="${st.variant}"]`)?.focus();
     },
@@ -6525,7 +6830,7 @@ const SETUP_ACTIONS = {
         const c = Number(el.dataset.cls);
         if (!classes.includes(c)) return;
         st.cls = c;
-        st.rows = setupRowsFor(st.profile, st.cls, st.variant);
+        st.rows = setupRowsFor(st.profile, st.cls, st.variant, st.lm2);
         renderSetup();
         $("setup-body").querySelector(`[data-cls="${st.cls}"]`)?.focus();
     },
@@ -6573,20 +6878,31 @@ function bindSetupEvents() {
             $("setup-buddy").innerHTML = setupBuddyHTML();
             return;
         }
-        if (t.classList.contains("setup-name")) {
+        if (t.classList.contains("setup-opt-topic")) {
             const r = ui.setup?.rows[Number(t.dataset.i)];
-            if (r) r.name = t.value;
+            if (r) {
+                r.topic = t.value;
+                // a scris tema: opționalul se bifează singur
+                if (t.value.trim() && !r.on) {
+                    r.on = true;
+                    t.closest(".setup-row")?.classList.remove("is-off");
+                    const chk = t.closest(".setup-row")?.querySelector(".setup-check");
+                    if (chk) chk.checked = true;
+                }
+            }
         }
     });
-    box.addEventListener("submit", event => {
-        if (!event.target.matches("[data-setup-add]")) return;
-        event.preventDefault();
-        const input = $("setup-new");
-        const name = input.value.trim().replace(/\s+/g, " ");
-        if (!name) return;
-        ui.setup.rows.push({ name, ore: 1, on: true, exists: Boolean(findSubjectName(name)) });
+    box.addEventListener("change", event => {
+        const t = event.target;
+        if (!t.classList.contains("setup-lm2")) return;
+        const r = ui.setup?.rows[Number(t.dataset.i)];
+        if (!r || !LM2_CHOICES.includes(t.value)) return;
+        r.name = t.value;
+        ui.setup.lm2 = t.value;
+        r.exists = Boolean(findSubjectName(r.name));
+        r.shown = findSubjectName(r.name) || r.name;
         renderSetup();
-        $("setup-new")?.focus();
+        $("setup-body").querySelector(".setup-lm2")?.focus();
     });
 }
 
@@ -7261,7 +7577,7 @@ const GUEST_SESSION_KEY = "pro_guest_browse_v4"; // a ales „doar mă uit” î
 const GUEST_OK = new Set([
     "nav", "show-date", "cal-nav", "cal-today", "cal-view", "cal-goto",
     "cat-select", "cat-step", "cat-group", "cat-back", "cat-filter", "cat-clear-filters", "open-subject", "cat-menu-glance",
-    "home-day", "home-risk", "stats-print", "stats-insights-more", "stats-period", "stats-jump", "alert-open",
+    "home-day", "home-risk", "plan-day", "help", "stats-print", "stats-insights-more", "stats-period", "stats-jump", "alert-open",
     "sim-scenario", "sim-toggle-all", "sim-pick-subject",
     "cmdk", "cmdk-close", "quick-add-close", "notif-open", "notif-close", "more-open", "more-close", "more-run",
     "modal-cancel", "none", "tour-start", "tour-next", "tour-back", "tour-skip", "buddy-poke",
@@ -7440,6 +7756,7 @@ function closeActionModal() {
 
     overlay.hidden = true;
     document.body.classList.remove("modal-open");
+    if (focusRun.it) stopFocus(); // „Renunț” / Escape / fundal: cronometrul se oprește, sesiunea rămâne nebifată
     $("action-modal-confirm").onclick = null;
     $("action-modal-body").innerHTML = "";
     ui.ttDraft = null;
@@ -7658,12 +7975,9 @@ function validateSubjectName(raw, currentName = null) {
     return name;
 }
 
-function subjectFormHTML({ name = "", ore = 2, target = 10, priority = false, excludeFromGPA = false } = {}, { withFlags = false } = {}) {
+function subjectFormHTML({ name = "", ore = 2, target = 10, priority = false, excludeFromGPA = false } = {}, { withFlags = false, withName = true } = {}) {
     return `
-        <div class="form-group">
-            <label for="subj-name">Nume materie</label>
-            <input type="text" id="subj-name" class="glass-input" placeholder="ex: Fizică" maxlength="60" autocomplete="off" value="${escapeHTML(name)}">
-        </div>
+        ${withName ? subjectNameFieldHTML(name) : ""}
         <div class="form-row">
             <div class="form-group">
                 <label for="subj-ore">Ore / săptămână</label>
@@ -7679,16 +7993,83 @@ function subjectFormHTML({ name = "", ore = 2, target = 10, priority = false, ex
             <label class="check-row"><input type="checkbox" id="subj-exclude" ${excludeFromGPA ? "checked" : ""}> ${icon("ban")} Exclusă din media generală</label>` : ""}`;
 }
 
+/**
+ * Numele unei materii la editare: din programă = fix; opționalul = doar tema; o materie din afara programei
+ * se poate înlocui cu una din programă (notele rămân).
+ */
+function subjectNameFieldHTML(name) {
+    if (isOptionalName(name)) return `
+        <div class="form-group">
+            <label for="subj-opt">Ce opțional faci?</label>
+            <input type="text" id="subj-opt" class="glass-input" maxlength="40" placeholder="ex: Educație financiară" autocomplete="off" value="${escapeHTML(optionalTopic(name))}">
+        </div>`;
+    if (inProgramme(name)) return `
+        <div class="form-group">
+            <span class="form-label">Materia</span>
+            <p class="subj-fixed">${escapeHTML(name)} <small>${myProgramme() ? "din programa ta" : ""}</small></p>
+        </div>`;
+    const options = missingProgrammeRows().filter(r => r.kind !== "opt");
+    return `
+        <div class="form-group">
+            <label for="subj-swap">Materia <span class="label-hint">(în afara programei)</span></label>
+            <select id="subj-swap" class="glass-select">
+                <option value="">Rămâne „${escapeHTML(name)}”</option>
+                ${options.map(r => `<option value="${escapeHTML(r.name)}">Devine ${escapeHTML(r.name)} (notele rămân)</option>`).join("")}
+            </select>
+        </div>`;
+}
+
 function promptAddMaterie() {
+    if (!myProgramme()) {
+        openModal({
+            layout: "panel",
+            title: "Materie nouă",
+            confirmText: "Alege programa",
+            body: `
+                <p class="modal-hint">Materiile vin din programa clasei tale (planul-cadru), plus dirigenția și un opțional. Alege-ți mai întâi profilul și clasa; materiile pe care le ai deja rămân neatinse.</p>`,
+            onConfirm: () => { closeActionModal(); openSetup(1); }
+        });
+        return;
+    }
+    const missing = missingProgrammeRows();
+    if (!missing.length) {
+        openModal({
+            layout: "panel",
+            title: "Materie nouă",
+            confirmText: "Schimbă programa",
+            cancelText: "Închide",
+            body: `
+                <p class="modal-hint">Ai deja toate materiile din programa ta (${escapeHTML(programmeLabel())}), plus dirigenția și opționalul.</p>
+                <p class="modal-hint">Ai trecut în altă clasă sau ai schimbat profilul? Schimbă programa și îți propun materiile noi.</p>`,
+            onConfirm: () => { closeActionModal(); openSetup(1); }
+        });
+        return;
+    }
+    const first = missing[0];
     openModal({
         layout: "panel",
         title: "Materie nouă",
         confirmText: "Adaugă",
-        body: subjectFormHTML(),
+        body: `
+            <p class="modal-hint">Din programa ta: ${escapeHTML(programmeLabel())}.</p>
+            <div class="form-group">
+                <label for="subj-pick">Materia</label>
+                <select id="subj-pick" class="glass-select">
+                    ${missing.map(r => `<option value="${escapeHTML(r.kind === "opt" ? "__opt" : r.name)}" data-ore="${r.ore}">${escapeHTML(r.kind === "opt" ? `${OPT} (scrii tu tema)` : r.name)}</option>`).join("")}
+                </select>
+            </div>
+            <div class="form-group" id="subj-opt-group" ${first.kind === "opt" ? "" : "hidden"}>
+                <label for="subj-opt">Ce opțional faci?</label>
+                <input type="text" id="subj-opt" class="glass-input" maxlength="40" placeholder="ex: Educație financiară" autocomplete="off">
+            </div>
+            ${subjectFormHTML({ ore: first.ore }, { withName: false })}`,
         onConfirm: () => {
-            const name = validateSubjectName(field("subj-name"));
-            if (!name) {
-                $("subj-name")?.focus();
+            const pick = field("subj-pick");
+            const row = missing.find(r => (r.kind === "opt" ? "__opt" : r.name) === pick);
+            if (!row) return;
+            const name = row.kind === "opt" ? optionalName(field("subj-opt")) : row.name;
+            if (findSubjectName(name) || (row.kind === "opt" && Object.keys(state.subjects).some(isOptionalName))) {
+                showToast(`⚠️ ${name} e deja în catalog.`);
                 return;
             }
 
@@ -7697,7 +8078,7 @@ function promptAddMaterie() {
                 target: clampNumber(field("subj-target"), 1, 10, 10),
                 grades: [],
                 priority: false,
-                excludeFromGPA: false
+                excludeFromGPA: row.kind === "dirig" && (myProgramme()?.cls || 9) >= 9
             };
             addActivity(`Ai adăugat materia ${name}.`);
             ui.catalog.selected = name;
@@ -7707,6 +8088,14 @@ function promptAddMaterie() {
             refresh();
             showToast(`Ai adăugat materia ${name}.`);
         }
+    });
+    // alegerea materiei completează orele din planul-cadru și arată câmpul pentru opțional
+    $("subj-pick")?.addEventListener("change", event => {
+        const opt = event.target.selectedOptions[0];
+        if ($("subj-ore") && opt?.dataset.ore) $("subj-ore").value = opt.dataset.ore;
+        const isOpt = event.target.value === "__opt";
+        $("subj-opt-group").hidden = !isOpt;
+        if (isOpt) $("subj-opt")?.focus();
     });
 }
 
@@ -7763,9 +8152,11 @@ function openEditSubjectModal(mat) {
                 showToast("⚠️ Materia nu mai există.");
                 return;
             }
-            const name = validateSubjectName(field("subj-name"), mat);
-            if (!name) {
-                $("subj-name")?.focus();
+            let name = mat;
+            if (isOptionalName(mat)) name = optionalName(field("subj-opt"));
+            else if (field("subj-swap")) name = field("subj-swap");
+            if (name !== mat && findSubjectName(name) && findSubjectName(name) !== mat) {
+                showToast(`⚠️ ${name} e deja în catalog.`);
                 return;
             }
 
@@ -7792,7 +8183,6 @@ function openEditSubjectModal(mat) {
             showToast(changes.length ? "Materie actualizată." : "Nicio modificare.");
         }
     });
-    $("subj-name")?.select();
 }
 
 function deleteSubject(mat) {
