@@ -212,6 +212,7 @@
                         <div class="cat-tools">
                             <input type="search" id="cat-search" class="glass-input" placeholder="Caută materie…" autocomplete="off" aria-label="Caută materie">
                             <select id="cat-sort" class="glass-select" aria-label="Sortează materiile">
+                                <option value="group">Pe stare</option>
                                 <option value="name">Nume A–Z</option>
                                 <option value="avg-desc">Media ↓</option>
                                 <option value="avg-asc">Media ↑</option>
@@ -222,7 +223,10 @@
                         <div id="cat-filters" class="cat-filters" role="group" aria-label="Filtrează materiile"></div>
                         <div id="cat-list" class="cat-list"></div>
                     </section>
-                    <section id="cat-detail" class="cat-detail-pane" aria-label="Detaliile materiei"></section>
+                    <section id="cat-detail-pane" class="cat-detail-pane" aria-label="Detaliile materiei">
+                        <nav id="cat-nav" class="cat-nav" aria-label="Treci la altă materie" hidden></nav>
+                        <div id="cat-detail"></div>
+                    </section>
                 </div>
             </section>
 

@@ -3629,3 +3629,72 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
 .glance-grades { display: flex; flex-wrap: wrap; gap: 6px; }
 .glance-grades { align-items: center; }
 .glance-label { font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin-right: 4px; }
+
+/* ==================== CATALOG: NAVIGARE MAI UȘOARĂ ==================== */
+/* Rânduri compacte */
+.cat-row { padding: 7px 10px; gap: 10px; }
+.cat-row-main { gap: 1px; }
+.cat-row-avg b { font-size: 16px; }
+.cat-list { gap: 2px; }
+/* Grupuri pe stare, care se pot strânge */
+.cat-group { display: flex; flex-direction: column; gap: 2px; }
+.cat-group + .cat-group, .cat-row.is-purtare + .cat-group { margin-top: 6px; }
+.cat-group-head {
+    position: sticky; top: 0; z-index: 1;
+    display: flex; align-items: center; gap: 7px; width: 100%; min-height: 34px; padding: 6px 8px;
+    border: 0; border-radius: 8px; background: var(--sheet); color: var(--ink-2);
+    font-size: 11.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; cursor: pointer;
+}
+.cat-group-head:hover { background: var(--card-hover); color: var(--ink); }
+.cat-group-head:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
+.cat-group-chev { width: 14px; height: 14px; transform: rotate(90deg); transition: transform 0.15s ease; flex: none; }
+.cat-group.is-closed .cat-group-chev { transform: rotate(0deg); }
+.cat-group-count { min-width: 20px; padding: 0 6px; border-radius: 99px; background: var(--accent-soft); color: var(--ink); font-size: 11px; text-align: center; letter-spacing: 0; }
+.cat-group.tone-danger .cat-group-head > span:first-of-type { color: var(--risk); }
+.cat-group.tone-warn .cat-group-head > span:first-of-type { color: var(--warn); }
+.cat-group.tone-ok .cat-group-head > span:first-of-type { color: var(--ok); }
+.cat-group-peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-2); }
+
+/* Bara ‹ › de deasupra detaliilor */
+.cat-nav { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.cat-nav[hidden] { display: none; }
+.cat-nav-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.cat-step { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 10px; max-width: 100%; justify-self: start; font-size: 13px; }
+.cat-step.is-next { justify-self: end; }
+.cat-step .ico { width: 16px; height: 16px; flex: none; }
+.cat-step .ico.is-flip { transform: rotate(180deg); }
+.cat-step-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-nav-pos { font-size: 12.5px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+/* Banda cu materii: doar pe telefon */
+.cat-strip { display: none; gap: 6px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+.cat-strip-chip {
+    display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 36px; padding: 6px 12px;
+    border: 1px solid var(--rule); border-radius: 99px; background: var(--sheet); color: var(--ink); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.cat-strip-chip .cat-dot { width: 8px; height: 8px; box-shadow: none; }
+.cat-strip-chip.is-on { border-color: var(--accent-color); background: color-mix(in srgb, var(--accent-color) 12%, var(--sheet)); color: var(--accent-color); }
+
+/* Pe calculator: lista și detaliile stau amândouă la vedere, fiecare cu derularea ei */
+@media (min-width: 901px) {
+    .cat-detail-pane {
+        position: sticky; top: calc(var(--appbar-h) + 16px);
+        max-height: calc(100vh - var(--appbar-h) - 32px); overflow-y: auto; overscroll-behavior: contain;
+        border-radius: var(--radius-lg); scrollbar-width: thin;
+    }
+    .cat-nav { position: sticky; top: 0; z-index: 2; padding: 0 0 8px; background: linear-gradient(var(--bg-color) 80%, transparent); }
+    .cat-list-pane { overscroll-behavior: contain; }
+}
+@media (max-width: 900px) {
+    .cat-row { padding: 9px 12px; min-height: 54px; }
+    .cat-strip { display: flex; }
+    .cat-step-name { max-width: 30vw; }
+}
+@media (prefers-reduced-motion: reduce) { .cat-group-chev { transition: none; } }
+@media (max-width: 900px) {
+    /* rezumatul catalogului, mai scund pe telefon: lista ajunge mai repede la vedere */
+    .cat-summary { gap: 8px; }
+    .cat-sum { padding: 10px 12px; }
+    .cat-sum .cat-sum-value { font-size: 22px; }
+    .cat-sum small { display: none; }
+    .cat-strip { position: relative; }
+}

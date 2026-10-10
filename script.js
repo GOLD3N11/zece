@@ -121,7 +121,7 @@ const ui = {
     cal: { view: "week", date: getLocalDateKey() }, // ziua în jurul căreia se afișează săptămâna/luna
     ttDraft: null,
     // Catalog: materia deschisă, căutare, sortare, filtru; showDetail = pe telefon, detaliile acoperă lista
-    catalog: { selected: "", query: "", sort: "name", filter: "all", showDetail: false, autoPicked: true },
+    catalog: { selected: "", query: "", sort: "group", filter: "all", showDetail: false, autoPicked: true, collapsed: {} },
     charts: {},
     home: { day: null },     // Azi: null = automat (după-amiaza arată ziua următoare), "today" | "next"
     statsSort: "attention",
@@ -1929,12 +1929,79 @@ function byAvg(dir) {
 const STATUS_RANK = { "badge-danger": 0, "badge-warn": 1, "badge-ok": 2 };
 
 const CATALOG_SORTS = {
+    group: byName, // în interiorul fiecărui grup (vezi CATALOG_GROUPS)
     name: byName,
     "avg-desc": byAvg(-1),
     "avg-asc": byAvg(1),
     risk: (a, b) => STATUS_RANK[a.d.statusClass] - STATUS_RANK[b.d.statusClass] || byAvg(1)(a, b),
     missing: (a, b) => b.d.requiredNotes - a.d.requiredNotes || byName(a, b)
 };
+
+/* Lista „pe stare”: grupuri care se pot strânge, cele care cer atenție primele. */
+const CATALOG_GROUPS = [
+    { key: "risk", label: "La risc", tone: "danger" },
+    { key: "below", label: "Sub țintă", tone: "warn" },
+    { key: "ok", label: "La țintă", tone: "ok" },
+    { key: "none", label: "Fără note", tone: "none" }
+];
+
+/** Materiile vizibile, în ordinea în care apar pe ecran, împărțite pe grupuri (sau un singur grup, la altă sortare). */
+function catalogGroups() {
+    const visible = visibleCatalogEntries();
+    if (ui.catalog.sort !== "group") return [{ key: "all", label: "", entries: visible }];
+    return CATALOG_GROUPS
+        .map(g => ({ ...g, entries: visible.filter(e => subjectStanding(e.sub, e.d).key === g.key) }))
+        .filter(g => g.entries.length);
+}
+
+/** Ordinea pentru „materia anterioară / următoare”: purtarea (dacă e în listă), apoi materiile, ca pe ecran. */
+function catalogOrder() {
+    return [...(purtareVisibleInList() ? [PURTARE_KEY] : []), ...catalogGroups().flatMap(g => g.entries.map(e => e.mat))];
+}
+
+function stepCatalog(dir) {
+    const order = catalogOrder();
+    if (order.length < 2) return;
+    const i = order.indexOf(ui.catalog.selected);
+    const next = order[(i < 0 ? 0 : i + dir + order.length) % order.length];
+    selectCatalogSubject(next);
+    $("cat-nav")?.querySelector(`[data-action="cat-step"][data-dir="${dir}"]`)?.focus({ preventScroll: true });
+}
+
+/** Bara de deasupra detaliilor: ‹ › între materii, poziția, iar pe telefon o bandă cu toate materiile. */
+function renderCatalogNav() {
+    const nav = $("cat-nav");
+    if (!nav) return;
+    const order = catalogOrder();
+    const i = order.indexOf(ui.catalog.selected);
+    if (order.length < 2 || i < 0) {
+        nav.innerHTML = "";
+        nav.hidden = true;
+        return;
+    }
+    nav.hidden = false;
+    const name = mat => mat === PURTARE_KEY ? "Purtare" : mat;
+    const prev = order[(i - 1 + order.length) % order.length];
+    const next = order[(i + 1) % order.length];
+    nav.innerHTML = `
+        <div class="cat-nav-bar">
+            <button type="button" class="btn btn-glass cat-step" data-action="cat-step" data-dir="-1" aria-label="${escapeHTML(`Materia anterioară: ${name(prev)}`)}" title="${escapeHTML(name(prev))} (←)">${icon("chevron", "is-flip")}<span class="cat-step-name">${escapeHTML(name(prev))}</span></button>
+            <span class="cat-nav-pos" aria-live="polite">${i + 1} din ${order.length}</span>
+            <button type="button" class="btn btn-glass cat-step is-next" data-action="cat-step" data-dir="1" aria-label="${escapeHTML(`Materia următoare: ${name(next)}`)}" title="${escapeHTML(name(next))} (→)"><span class="cat-step-name">${escapeHTML(name(next))}</span>${icon("chevron")}</button>
+        </div>
+        <div class="cat-strip" role="tablist" aria-label="Alege materia">
+            ${order.map(mat => {
+                const d = mat === PURTARE_KEY ? null : metrics.subjects[mat];
+                const tone = mat === PURTARE_KEY ? "ok" : statusTone(d);
+                const on = mat === ui.catalog.selected;
+                return `<button type="button" role="tab" class="cat-strip-chip ${on ? "is-on" : ""}" aria-selected="${on}" data-action="cat-select" data-mat="${escapeHTML(mat)}"><i class="cat-dot ${tone}" aria-hidden="true"></i>${escapeHTML(name(mat))}</button>`;
+            }).join("")}
+        </div>`;
+    // materia aleasă, la mijlocul benzii (fără să miște pagina)
+    const strip = nav.querySelector(".cat-strip");
+    const chip = strip?.querySelector(".is-on");
+    if (strip && chip && strip.clientWidth) strip.scrollLeft = chip.offsetLeft - strip.offsetLeft - (strip.clientWidth - chip.offsetWidth) / 2;
+}
 
 /** Text fără diacritice, pentru căutare: „matematica” găsește „Matematică”. */
 function foldText(value) {
@@ -2037,7 +2104,7 @@ function renderCatalog() {
 
     // Selecția rămâne validă: dacă materia a dispărut, alegem prima din listă (sau purtarea, care există mereu).
     if (ui.catalog.selected !== PURTARE_KEY && !state.subjects[ui.catalog.selected]) {
-        ui.catalog.selected = (visibleCatalogEntries()[0] || entries[0])?.mat || PURTARE_KEY;
+        ui.catalog.selected = (catalogGroups()[0]?.entries[0] || entries[0])?.mat || PURTARE_KEY;
         ui.catalog.showDetail = false;
         ui.catalog.autoPicked = true; // aleasă automat: pe telefon nu o evidențiem în listă
     }
@@ -2053,6 +2120,7 @@ function renderCatalog() {
     layout.classList.toggle("show-detail", ui.catalog.showDetail);
     layout.classList.toggle("auto-pick", ui.catalog.autoPicked);
     $("tab-catalog").classList.toggle("cat-detail-open", ui.catalog.showDetail);
+    renderCatalogNav();
 }
 
 function renderCatalogSummary(entries) {
@@ -2107,7 +2175,7 @@ function renderCatalogList() {
         return;
     }
 
-    list.innerHTML = pinned + visible.map(({ mat, sub, d }) => {
+    const rowHTML = ({ mat, sub, d }) => {
         const selected = mat === ui.catalog.selected;
         const hasGrades = sub.grades.length > 0;
         const meta = [
@@ -2122,13 +2190,25 @@ function renderCatalogList() {
                 <span class="cat-row-main">
                     <span class="cat-row-name">${sub.priority ? '<span class="cat-star" aria-label="prioritară">★</span>' : ""}${escapeHTML(mat)}</span>
                     <span class="cat-row-meta">${escapeHTML(meta)}${sub.excludeFromGPA ? ' · <span class="cat-tag">exclusă</span>' : ""}</span>
-                    <span class="cat-row-bar" aria-hidden="true"><span class="tone-${hasGrades ? gradeTone(d.exactAvg) : "none"}" style="width:${hasGrades ? d.exactAvg * 10 : 0}%"></span></span>
                 </span>
                 <span class="cat-row-avg">
                     <b>${hasGrades ? d.exactAvg.toFixed(2) : "–"}</b>
                     <small>${hasGrades ? `→ ${d.roundedAvg}` : escapeHTML(d.status)}</small>
                 </span>
             </button>`;
+    };
+    const searching = Boolean(ui.catalog.query.trim());
+    list.innerHTML = pinned + catalogGroups().map(g => {
+        if (!g.label) return g.entries.map(rowHTML).join("");
+        const open = searching || !ui.catalog.collapsed[g.key] || g.entries.some(e => e.mat === ui.catalog.selected && !ui.catalog.autoPicked);
+        return `
+            <div class="cat-group tone-${g.tone} ${open ? "" : "is-closed"}">
+                <button type="button" class="cat-group-head" data-action="cat-group" data-group="${g.key}" aria-expanded="${open}">
+                    ${icon("chevron", "cat-group-chev")}<span>${g.label}</span><span class="cat-group-count">${g.entries.length}</span>
+                    ${open ? "" : `<span class="cat-group-peek">${escapeHTML(g.entries.slice(0, 3).map(e => e.mat).join(", "))}${g.entries.length > 3 ? "…" : ""}</span>`}
+                </button>
+                ${open ? g.entries.map(rowHTML).join("") : ""}
+            </div>`;
     }).join("");
 }
 
@@ -2361,11 +2441,22 @@ function upcomingHTML(mat) {
 function selectCatalogSubject(mat, { showDetail = true } = {}) {
     if (mat !== PURTARE_KEY && !state.subjects[mat]) return;
     const listHadFocus = $("cat-list")?.contains(document.activeElement);
+    const changed = mat !== ui.catalog.selected;
     ui.catalog.selected = mat;
     ui.catalog.showDetail = showDetail;
     ui.catalog.autoPicked = false;
     renderCatalog();
 
+    // O materie nouă se vede de la început: detaliile pornesc de sus, iar pagina nu rămâne derulată sub ele.
+    if (changed) {
+        const pane = $("cat-detail-pane");
+        if (pane) pane.scrollTop = 0;
+        const top = $("catalog-layout")?.getBoundingClientRect().top ?? 0;
+        const bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--appbar-h")) || 0;
+        if (top < bar) window.scrollBy({ top: top - bar - 12 });
+        // în listă, materia aleasă rămâne la vedere (ex. după ‹ ›)
+        $("cat-list")?.querySelector(".cat-row.selected")?.scrollIntoView({ block: "nearest" });
+    }
     // Pe telefon lista dispare: ducem focusul și pagina la detalii.
     const listVisible = $("cat-list")?.offsetParent !== null;
     if (showDetail && !listVisible) {
@@ -2407,6 +2498,7 @@ function bindCatalogEvents() {
     const runSearch = debounce(() => {
         ui.catalog.query = search.value;
         renderCatalogList();
+        renderCatalogNav();
     }, 100);
     search.addEventListener("input", runSearch);
     search.addEventListener("keydown", event => {
@@ -2415,6 +2507,7 @@ function bindCatalogEvents() {
             search.value = "";
             ui.catalog.query = "";
             renderCatalogList();
+            renderCatalogNav();
         } else if (event.key === "ArrowDown") {
             event.preventDefault();
             $("cat-list").querySelector(".cat-row")?.focus();
@@ -2510,6 +2603,33 @@ function openSubjectGlance(mat) {
             openAddGradeModal(mat);
         }
     });
+}
+
+/** ← → între materii (când nu scrii nimic) și glisare stânga/dreapta pe detalii, pe telefon. */
+function bindCatalogNav() {
+    document.addEventListener("keydown", event => {
+        if (ui.activeTab !== "tab-catalog" || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        if (isTyping(event.target) || event.target.closest?.("select, .cat-menu") || document.body.classList.contains("modal-open") || tour.open) return;
+        event.preventDefault();
+        stepCatalog(event.key === "ArrowLeft" ? -1 : 1);
+    });
+    const pane = $("cat-detail");
+    if (!pane) return;
+    let start = null;
+    pane.addEventListener("touchstart", event => {
+        const t = event.touches[0];
+        start = event.touches.length === 1 && !event.target.closest(".cat-strip, input, select, textarea") ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
+    }, { passive: true });
+    pane.addEventListener("touchend", event => {
+        if (!start) return;
+        const t = event.changedTouches[0];
+        const dx = t.clientX - start.x;
+        const dy = t.clientY - start.y;
+        const quick = Date.now() - start.at < 700;
+        start = null;
+        if (quick && Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.6) stepCatalog(dx < 0 ? 1 : -1);
+    }, { passive: true });
 }
 
 function bindCatMenu() {
@@ -9249,6 +9369,13 @@ const ACTIONS = {
         rerenderTimetableEditor(el.dataset.day);
     },
     "cat-select": el => selectCatalogSubject(el.dataset.mat),
+    "cat-step": el => stepCatalog(Number(el.dataset.dir) === -1 ? -1 : 1),
+    "cat-group": el => {
+        const key = el.dataset.group;
+        ui.catalog.collapsed[key] = el.getAttribute("aria-expanded") === "true";
+        renderCatalogList();
+        $("cat-list").querySelector(`[data-action="cat-group"][data-group="${key}"]`)?.focus();
+    },
     "cat-back": () => {
         ui.catalog.showDetail = false;
         renderCatalog();
@@ -9423,6 +9550,7 @@ function init() {
     bindSetupEvents();
     bindAuthEvents();
     bindCatMenu();
+    bindCatalogNav();
     initBuddyLook();
     initCloud();
     // Cu conturi, configurarea vine după alegerea de pe ecranul de autentificare.
