@@ -3487,3 +3487,85 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
 @media (prefers-reduced-motion: reduce) {
     .b-shock, .b-steam, .b-sweat, .b-spark, .b-heart { display: none; }
 }
+
+/* ==================== PLANUL MEU ==================== */
+.plan-head-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.plan-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr); gap: var(--gap-grid); align-items: start; }
+.plan-side { display: flex; flex-direction: column; gap: var(--gap-grid); min-width: 0; }
+.plan-week, .plan-progress, .plan-goals { padding: 18px 20px; min-width: 0; }
+.plan-day { padding: 12px 0; border-top: 1px solid var(--rule); }
+.plan-day:first-of-type { border-top: 0; padding-top: 4px; }
+.plan-day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.plan-day-head h4 { font-size: 14px; font-weight: 700; }
+.plan-day.is-today .plan-day-head h4 { color: var(--accent-color); }
+.plan-day-time { font-size: 12px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.plan-empty { font-size: 13px; color: var(--ink-2); }
+.plan-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.plan-item {
+    display: flex; align-items: center; gap: 12px; min-width: 0;
+    padding: 8px 10px; border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet);
+    border-left: 4px solid var(--note);
+}
+.plan-item.kind-review { border-left-color: var(--pink); }
+.plan-item.kind-practice { border-left-color: var(--accent-color); }
+.plan-item.kind-homework { border-left-color: var(--ok); }
+.plan-item.is-done { opacity: 0.62; }
+.plan-item.is-done .plan-main b { text-decoration: line-through; text-decoration-thickness: 2px; }
+.plan-check { position: relative; flex: none; display: grid; place-items: center; width: 28px; height: 28px; cursor: pointer; }
+.plan-check input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.plan-box { display: grid; place-items: center; width: 22px; height: 22px; border: 2px solid var(--ink-2); border-radius: 6px; color: transparent; transition: background 0.15s, border-color 0.15s; }
+.plan-box .ico { width: 15px; height: 15px; stroke-width: 3; }
+.plan-check input:checked + .plan-box { background: var(--accent-color); border-color: var(--accent-color); color: var(--on-accent); }
+.plan-check input:focus-visible + .plan-box { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+.plan-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.plan-main b { font-size: 14px; overflow-wrap: anywhere; }
+.plan-main small { font-size: 12.5px; color: var(--ink-2); }
+.plan-kind { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: var(--ink); }
+.plan-kind .ico { width: 13px; height: 13px; }
+.plan-tools { display: flex; gap: 2px; flex: none; }
+.plan-tools .icon-btn { min-width: 36px; min-height: 36px; padding: 0; color: var(--ink-2); }
+.plan-tools .icon-btn:hover { color: var(--ink); }
+.plan-list.is-compact .plan-item { padding: 6px 8px; }
+.plan-done-line { margin-top: 8px; font-size: 13.5px; font-weight: 700; color: var(--ok); display: flex; align-items: center; gap: 6px; }
+.azi-plan .btn-sm { margin-top: 8px; }
+.plan-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 8px 0 12px; }
+.plan-stats div { display: flex; flex-direction: column; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); }
+.plan-stats b { font-family: var(--font-hand); font-size: 24px; line-height: 1.1; color: var(--accent-color); }
+.plan-stats small { font-size: 12px; color: var(--ink-2); }
+.plan-bar { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--ink-2) 16%, transparent); overflow: hidden; }
+.plan-bar span { display: block; height: 100%; border-radius: inherit; background: var(--accent-color); transition: width 0.4s ease; }
+.plan-goal-list { list-style: none; display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.plan-goals .subtitle { margin-top: 2px; font-size: 12.5px; }
+.plan-setup { display: flex; gap: 22px; align-items: flex-start; padding: 24px; max-width: 860px; }
+.plan-setup-buddy .buddy { width: 110px; height: 110px; }
+.plan-setup-main { flex: 1; min-width: 0; }
+.plan-setup-main h3 { font-family: var(--font-hand); font-size: 22px; }
+.plan-setup-main .subtitle { margin: 6px 0 14px; max-width: 60ch; }
+.plan-prefs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; margin-bottom: 14px; }
+.plan-prefs .plan-cal-row { grid-column: 1 / -1; }
+.plan-move-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.plan-move-days .btn { justify-content: center; }
+/* în Calendar: sesiunile din plan, discrete */
+.cal-plan { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.cal-plan-item {
+    display: flex; align-items: center; gap: 5px; width: 100%; min-width: 0; padding: 4px 6px;
+    border: 1px dashed color-mix(in srgb, var(--note-fold) 70%, var(--rule)); border-radius: 7px;
+    background: color-mix(in srgb, var(--note) 16%, transparent); color: var(--ink); font-size: 12px; font-weight: 600; text-align: left; cursor: pointer;
+}
+.cal-plan-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-plan-item .ico { flex: none; width: 13px; height: 13px; }
+.cal-plan-item.is-done { opacity: 0.55; text-decoration: line-through; }
+@media (max-width: 900px) {
+    .plan-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+    .plan-setup { flex-direction: column; padding: 18px; }
+    .plan-setup-buddy .buddy { width: 72px; height: 72px; }
+    .plan-prefs { grid-template-columns: minmax(0, 1fr); }
+    .plan-head-tools { width: 100%; }
+    .plan-head-tools .btn { flex: 1 1 auto; justify-content: center; }
+}
+@media print { .plan-tools, .plan-head-tools { display: none !important; } }
+#tab-plan .page-intro p { max-width: 62ch; }
+#tab-plan .plan-head-tools { flex: none; flex-wrap: nowrap; }
+@media (max-width: 1180px) { #tab-plan .plan-head-tools { flex-wrap: wrap; } }

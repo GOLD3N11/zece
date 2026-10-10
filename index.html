@@ -125,6 +125,7 @@
         </div>
         <nav class="side-nav" aria-label="Navigație principală">
             <button type="button" class="tab-btn side-link active" data-action="nav" data-tab="tab-dashboard" aria-current="page"><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg><span>Azi</span></button>
+            <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-plan"><svg class="ico" aria-hidden="true"><use href="#i-calendar-check"/></svg><span>Plan</span></button>
             <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-catalog"><svg class="ico" aria-hidden="true"><use href="#i-notebook"/></svg><span>Catalog</span></button>
             <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-calendar"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg><span>Calendar</span></button>
             <button type="button" class="tab-btn side-link" data-action="nav" data-tab="tab-statistici"><svg class="ico" aria-hidden="true"><use href="#i-chart"/></svg><span>Statistici</span></button>
@@ -178,6 +179,7 @@
                 <div class="azi-grid">
                     <div class="azi-col azi-col-main">
                         <section class="glass-card azi-card azi-day" id="azi-day" aria-labelledby="azi-day-title"></section>
+                        <section class="glass-card azi-card azi-plan" id="azi-plan" aria-labelledby="azi-plan-title"></section>
                         <section class="glass-card azi-card azi-todo" id="azi-todo" aria-labelledby="azi-todo-title"></section>
                         <section class="glass-card azi-card azi-recent" id="azi-recent" aria-labelledby="azi-recent-title"></section>
                     </div>
@@ -261,6 +263,22 @@
             </section>
 
             <!-- ================= SIMULATOR ================= -->
+            <!-- ================= PLANUL MEU ================= -->
+            <section id="tab-plan" class="tab-content" aria-labelledby="h-plan">
+                <div class="page-intro">
+                    <div>
+                        <h2 id="h-plan">Planul meu</h2>
+                        <p>Ce înveți în fiecare zi, cât și de ce: înainte de teste, pentru teme și pentru materiile care au nevoie. Se reface singur când apare ceva nou.</p>
+                    </div>
+                    <div class="plan-head-tools" id="plan-tools" hidden>
+                        <button type="button" class="btn btn-glass" data-action="plan-prefs"><svg class="ico" aria-hidden="true"><use href="#i-clock"/></svg> Timpul meu</button>
+                        <button type="button" class="btn btn-glass" data-action="plan-rebuild"><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg> Refă planul</button>
+                        <button type="button" class="btn btn-primary" data-action="plan-add"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg> Adaugă sesiune</button>
+                    </div>
+                </div>
+                <div id="plan-body"></div>
+            </section>
+
             <section id="tab-simulator" class="tab-content" aria-labelledby="h-simulator">
                 <div class="page-intro">
                     <div>
@@ -686,6 +704,7 @@
         <div class="quick-add-backdrop" data-action="more-close"></div>
         <div class="quick-add-card" role="menu" aria-label="Mai mult">
             <p class="quick-add-title">Mai mult</p>
+            <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="plan"><svg class="ico" aria-hidden="true"><use href="#i-calendar-check"/></svg><span><b>Planul meu</b><small>ce înveți în fiecare zi</small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="sim"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span><b>Simulator</b><small>„ce-ar fi dacă” pentru notele care urmează</small></span></button>
             <button type="button" role="menuitem" class="qa-item cloud-only" data-action="more-run" data-kind="account"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg><span><b>Cont</b><small class="sync-line" data-sync-status="local"><i class="sync-dot" aria-hidden="true"></i><span class="sync-text">Doar pe acest dispozitiv</span></small></span></button>
             <button type="button" role="menuitem" class="qa-item" data-action="more-run" data-kind="settings"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg><span><b>Setări</b><small>ținte, calcul, aspect, module, backup</small></span></button>

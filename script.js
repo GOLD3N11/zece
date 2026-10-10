@@ -17,7 +17,8 @@ const KEYS = {
     lastExport: "pro_last_export_v4", // momentul ultimului backup exportat
     timetable: "pro_timetable_db_v4", // orarul săptămânal: { 1: ["Matematică", ...], ... }
     purtare: "pro_purtare_db_v4",     // purtarea pe module: { grades: { "2026-2": { val, reason } }, ... }
-    brand: "pro_brand_v4"             // a trecut o dată prin schimbarea mărcii (Zece → urNotes)
+    brand: "pro_brand_v4",            // a trecut o dată prin schimbarea mărcii (Zece → urNotes)
+    plan: "pro_plan_db_v4"            // planul de studiu: preferințe de timp + sesiuni (vezi PLANUL MEU)
 };
 
 
@@ -72,6 +73,7 @@ const REPORT_SECTIONS = [
     { key: "modules", label: "Mediile pe module și purtarea", on: true },
     { key: "upcoming", label: "Evaluările din următoarele 30 de zile", on: true },
     { key: "tips", label: "Recomandări", on: true },
+    { key: "plan", label: "Planul de studiu pentru următoarele 7 zile", on: false },
     { key: "sign", label: "Loc pentru semnătura părintelui", on: false }
 ];
 
@@ -107,7 +109,8 @@ const state = {
     history: [],
     alertMeta: { dismissed: {}, read: {} },
     achievements: Object.fromEntries(ACHIEVEMENTS.map(a => [a.key, false])),
-    settings: clone(DEFAULT_SETTINGS)
+    settings: clone(DEFAULT_SETTINGS),
+    plan: defaultPlan()
 };
 
 let metrics = emptyMetrics();
@@ -735,7 +738,8 @@ function readStoredData(read) {
         activity: read("activity"),
         history: read("history"),
         alertMeta: read("alertMeta"),
-        achievements: read("achievements")
+        achievements: read("achievements"),
+        plan: read("plan")
     };
     normalizeState(data);
     return { data, sim: parseSimulator(read("simulator")) };
@@ -841,6 +845,7 @@ function normalizeEvent(ev, dateKey) {
 function normalizeState(s) {
     s.settings = sanitizeSettings(s.settings);
     s.purtare = sanitizePurtare(s.purtare);
+    s.plan = sanitizePlan(s.plan);
 
     const meta = isPlainObject(s.alertMeta) ? s.alertMeta : {};
     s.alertMeta = {
@@ -923,7 +928,8 @@ function saveState() {
         [KEYS.achievements]: state.achievements,
         [KEYS.history]: state.history,
         [KEYS.alertMeta]: state.alertMeta,
-        [KEYS.simulator]: sim
+        [KEYS.simulator]: sim,
+        [KEYS.plan]: state.plan
     };
 
     let changed = false;
@@ -1113,6 +1119,16 @@ function generateAlerts() {
         });
     });
 
+    // Planul de azi: câte sesiuni mai sunt
+    const planToday = state.plan.prefs.setup ? state.plan.items.filter(it => it.date === today && !it.done) : [];
+    if (planToday.length) {
+        push({
+            id: `plan:${today}`,
+            text: `Azi ai ${plural(planToday.length, "sesiune", "sesiuni")} în plan (${planToday.reduce((n, it) => n + it.min, 0)} min): ${planToday.map(it => it.mat).join(", ")}.`,
+            type: "success", icon: "calendar-check", tab: "tab-plan"
+        });
+    }
+
     // Teste trecute fără notă: legătura dintre calendar și catalog.
     occurrencesBetween(addDays(today, -30), addDays(today, -1)).forEach(({ ev, date, key }) => {
         if (!NEEDS_GRADE.has(ev.type) || !state.subjects[ev.subject] || isOccurrenceDone(ev, date, links)) return;
@@ -1142,7 +1158,7 @@ function pruneSubjectAlertMeta() {
 }
 
 function isEventAlertId(id) {
-    return id.startsWith("exam:") || id.startsWith("ungraded:");
+    return id.startsWith("exam:") || id.startsWith("ungraded:") || id.startsWith("plan:");
 }
 
 /** Șterge starea alertelor (citit/eliminat) pentru toate aparițiile unui eveniment. */
@@ -1183,6 +1199,7 @@ function refresh() {
     checkModuleRollover();
     updateHistoryPoint();
     checkAchievements();
+    updatePlan();
     alerts = generateAlerts();
     pruneTimetable();
     pruneSimulator();
@@ -1196,6 +1213,7 @@ function refresh() {
 /* ==================== RANDARE ==================== */
 const TAB_RENDERERS = {
     "tab-dashboard": renderDashboard,
+    "tab-plan": renderPlan,
     "tab-catalog": renderCatalog,
     "tab-calendar": renderCalendar,
     "tab-simulator": renderSimulator,
@@ -1448,7 +1466,11 @@ function buddyState({ today }, { tests }) {
     const soon = tests.find(o => daysBetween(today, o.date) <= 1);
 
     if (ten && daysBetween(ten.date, today) <= 2) return { mood: "happy", text: `Un 10 la ${ten.mat}! Bravo${hey}, ți-am lipit o steluță.` };
-    if (risk) return { mood: "worried", text: `${risk} e la ${formatAvg(metrics.subjects[risk].exactAvg)}, sub pragul tău de ${formatAvg(state.settings.calc.riskThreshold)}. Facem un plan împreună?` };
+    const planToday = state.plan.prefs.setup ? state.plan.items.filter(it => it.date === today) : [];
+    if (planToday.length && planToday.every(it => it.done)) return { mood: "love", text: `Gata planul de azi! Bravo${hey}, mă bucur tare.` };
+    if (risk) return { mood: "worried", text: `${risk} e la ${formatAvg(metrics.subjects[risk].exactAvg)}, sub pragul tău de ${formatAvg(state.settings.calc.riskThreshold)}. ${state.plan.prefs.setup ? "Am pus sesiuni pentru ea în planul tău." : "Facem un plan împreună? Îl găsești la „Plan”."}` };
+    const todo = planToday.filter(it => !it.done);
+    if (todo.length && new Date().getHours() >= 15) return { mood: "focused", text: `Mai ai ${plural(todo.length, "sesiune", "sesiuni")} în planul de azi. Începem cu ${todo[0].mat}?` };
     if (soon) {
         const what = `${soon.ev.type.toLocaleLowerCase("ro")}${soon.ev.subject ? ` la ${soon.ev.subject}` : ""}`;
         return { mood: "focused", text: `${capitalize(dayWord(soon.date, today))} ai ${what}. Recapitulăm puțin${hey}?` };
@@ -1522,6 +1544,7 @@ function renderDashboard() {
 
     $("azi-day").innerHTML = homeDayHTML(days, links);
     $("azi-todo").innerHTML = homeTodoHTML(todo, links, days.today);
+    if ($("azi-plan")) $("azi-plan").innerHTML = homePlanHTML(days.today);
     $("azi-avg").innerHTML = homeAverageHTML();
     const watch = homeWatchHTML();
     $("azi-watch").innerHTML = watch;
@@ -2561,8 +2584,19 @@ function dayColumnHTML(date, items, links, today) {
                             title="${escapeHTML(`Ora ${i + 1}: ${m} — adaugă un test sau o temă`)}"><span class="cal-lesson-n">${i + 1}</span><span class="cal-lesson-name">${escapeHTML(m)}</span></button>`).join("")}
                 </div>` : ""}
             <div class="cal-items">${items.map(o => eventCardHTML(o, links)).join("")}</div>
+            ${calPlanHTML(date)}
             <button type="button" class="cal-add" data-action="add-event" data-date="${date}">${icon("plus")} Adaugă</button>
         </section>`;
+}
+
+/** Sesiunile din plan, discrete, sub evenimentele zilei (dacă elevul vrea să le vadă în Calendar). */
+function calPlanHTML(date) {
+    if (!state.plan.prefs.setup || !state.plan.prefs.calendar) return "";
+    const items = planItemsOn(date);
+    if (!items.length) return "";
+    return `<div class="cal-plan" aria-label="Din plan">${items.map(it => `
+        <button type="button" class="cal-plan-item ${it.done ? "is-done" : ""}" data-action="nav" data-tab="tab-plan" title="${escapeHTML(`${PLAN_KINDS[it.kind].label} · ${it.min} min${it.reason ? ` · ${it.reason}` : ""}`)}">
+            ${icon(it.done ? "check" : PLAN_KINDS[it.kind].icon)}<span>${escapeHTML(it.mat)} · ${it.min}′</span></button>`).join("")}</div>`;
 }
 
 function eventCardHTML({ ev, date }, links) {
@@ -2682,7 +2716,8 @@ function openAlertTarget(id) {
     if (!al) return;
     state.alertMeta.read[id] = true; // refresh() salvează
     closeNotifPanel({ restoreFocus: false });
-    if (al.date) showDateInCalendar(al.date);
+    if (al.tab) switchTab(al.tab);
+    else if (al.date) showDateInCalendar(al.date);
     else if (al.mat) openSubjectInCatalog(al.mat);
     else if (al.filter && CATALOG_FILTERS[al.filter]) {
         ui.catalog.filter = al.filter;
@@ -4343,6 +4378,13 @@ function buildPrintReport() {
         </section>`;
 
     const pair = (a, b) => a && b ? `<div class="pr-cols">${a}${b}</div>` : (a || b || "");
+    const planDaysList = state.plan.prefs.setup ? planDays().map(d => [d, planItemsOn(d)]).filter(([, items]) => items.length) : [];
+    const planHTML = `
+        <section class="pr-block">
+            <h2>Planul de studiu · următoarele 7 zile</h2>
+            ${planDaysList.length ? `<ul class="pr-list pr-plan">${planDaysList.map(([d, items]) => `<li><b>${escapeHTML(planDayLabel(d, getLocalDateKey()))}:</b> ${items.map(it => `${escapeHTML(it.mat)} (${escapeHTML(PLAN_KINDS[it.kind].label.toLocaleLowerCase("ro"))}, ${it.min} min${it.done ? ", făcut" : ""})`).join("; ")}</li>`).join("")}</ul>`
+                : `<p class="pr-empty">${state.plan.prefs.setup ? "Nicio sesiune în următoarele 7 zile." : "Planul de studiu nu a fost încă făcut (pagina „Plan”)."}</p>`}
+        </section>`;
 
     box.innerHTML = `
         <header class="pr-head">
@@ -4386,6 +4428,7 @@ function buildPrintReport() {
 
         ${pair(on("chart") ? chartHTML : "", on("modules") ? modulesHTML : "")}
         ${pair(on("upcoming") ? upcomingHTML : "", on("tips") ? tipsHTML : "")}
+        ${on("plan") ? planHTML : ""}
 
         ${on("sign") ? `
             <section class="pr-sign">
@@ -5065,6 +5108,536 @@ function finishSetup(withTimetable) {
     }
 }
 
+/* ==================== PLANUL MEU ==================== */
+/*
+ * Un plan de studiu pe 7 zile, făcut din ce știe deja aplicația: note și ținte, materiile la risc,
+ * testele și temele din calendar, orarul. Elevul spune o singură dată cât timp are; restul e automat.
+ *
+ * Reguli (fără AI, merge offline):
+ *   – înaintea unui test: „învață” cu ~4 zile înainte, „exersează” cu ~2 zile, „recapitulează” în ajun;
+ *   – o temă: o sesiune în ziua dinainte;
+ *   – o materie la risc: 2 sesiuni pe săptămână, de preferință în ajunul orei ei (din orar);
+ *   – o materie sub țintă: o sesiune (două dacă e marcată prioritară);
+ *   – timpul rămas: încă o recapitulare pentru materiile care au nevoie, fără să treacă de minutele zilei.
+ * Planul se reface singur când se schimbă ceva (un test nou, o notă). Sesiunile bifate sau mutate de elev rămân.
+ * Totul e determinist (id-uri din cerere + zi), ca două dispozitive să ajungă la același plan, fără conflicte la sincronizare.
+ */
+const PLAN_DAYS = 7;
+const PLAN_KEEP_DAYS = 60;
+const PLAN_KINDS = {
+    homework: { label: "Temă", icon: "note", rank: 0 },
+    review: { label: "Recapitulează", icon: "repeat", rank: 1 },
+    practice: { label: "Exersează", icon: "pen", rank: 2 },
+    learn: { label: "Învață", icon: "notebook", rank: 3 },
+    free: { label: "Studiu", icon: "book", rank: 4 }
+};
+const PLAN_MINUTES = [0, 15, 30, 45, 60, 90, 120, 150, 180];
+const PLAN_SESSIONS = [15, 20, 25, 30, 45, 60];
+const EV_ARTICLE = { Test: "testul", Examen: "examenul", Proiect: "proiectul", Prezentare: "prezentarea", "Temă": "tema" };
+
+function defaultPlan() {
+    return { prefs: { school: 45, weekend: 60, session: 30, rest: -1, calendar: true, setup: false }, items: [], removed: {}, sig: "" };
+}
+
+function sanitizePlan(raw) {
+    const plan = defaultPlan();
+    if (!isPlainObject(raw)) return plan;
+    const pr = isPlainObject(raw.prefs) ? raw.prefs : {};
+    plan.prefs = {
+        school: clampInteger(pr.school, 0, 600, 45),
+        weekend: clampInteger(pr.weekend, 0, 600, 60),
+        session: PLAN_SESSIONS.includes(Number(pr.session)) ? Number(pr.session) : 30,
+        rest: Number.isInteger(Number(pr.rest)) && Number(pr.rest) >= -1 && Number(pr.rest) <= 6 ? Number(pr.rest) : -1,
+        calendar: pr.calendar !== false,
+        setup: pr.setup === true
+    };
+    const today = getLocalDateKey();
+    const cutoff = addDays(today, -PLAN_KEEP_DAYS);
+    plan.items = (Array.isArray(raw.items) ? raw.items : []).filter(isPlainObject).map(it => ({
+        id: String(it.id || uid()).slice(0, 200),
+        date: typeof it.date === "string" && DATE_KEY_RE.test(it.date) ? it.date : "",
+        mat: typeof it.mat === "string" ? it.mat.trim().slice(0, 60) : "",
+        kind: PLAN_KINDS[it.kind] ? it.kind : "free",
+        min: clampInteger(it.min, 5, 240, 30),
+        reason: typeof it.reason === "string" ? it.reason.slice(0, 160) : "",
+        done: it.done === true,
+        manual: it.manual === true,
+        demand: typeof it.demand === "string" ? it.demand.slice(0, 200) : ""
+    })).filter(it => it.date && it.mat && it.date >= cutoff).slice(0, 600);
+    plan.removed = Object.fromEntries(Object.entries(isPlainObject(raw.removed) ? raw.removed : {})
+        .filter(([, until]) => typeof until === "string" && DATE_KEY_RE.test(until) && until >= today).slice(0, 300));
+    plan.sig = typeof raw.sig === "string" ? raw.sig.slice(0, 40) : "";
+    return plan;
+}
+
+const planDays = (today = getLocalDateKey()) => Array.from({ length: PLAN_DAYS }, (_, i) => addDays(today, i));
+
+/** Câte minute are elevul într-o zi: ziua liberă = 0; în vacanță și în weekend, timpul de weekend. */
+function planMinutesOn(date) {
+    const p = state.plan.prefs;
+    const wd = parseDateKey(date).getDay();
+    if (wd === p.rest) return 0;
+    return isSchoolDay(date) ? p.school : p.weekend;
+}
+
+const weekdayLower = date => WEEKDAY_LONG[parseDateKey(date).getDay()].toLocaleLowerCase("ro");
+function eventPhrase(type, date, from) {
+    const what = EV_ARTICLE[type] || "evaluarea";
+    const n = daysBetween(from, date);
+    if (n === 1) return `${what} de mâine`;
+    const d = parseDateKey(date);
+    return n <= 6 ? `${what} de ${weekdayLower(date)}` : `${what} din ${d.getDate()} ${MONTHS[d.getMonth()].toLocaleLowerCase("ro")}`;
+}
+
+function hashText(text) {
+    let h = 5381;
+    for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+}
+
+/** Tot ce influențează planul; dacă nu s-a schimbat nimic, planul nu se reface. */
+function planSignature(today) {
+    const links = gradeLinks();
+    const occ = occurrencesBetween(today, addDays(today, PLAN_DAYS + 4))
+        .filter(o => (NEEDS_GRADE.has(o.ev.type) || o.ev.type === "Temă") && state.subjects[o.ev.subject])
+        .map(o => [o.key, o.ev.type, o.ev.subject, isOccurrenceDone(o.ev, o.date, links) ? 1 : 0]);
+    const subs = Object.entries(state.subjects).map(([m, s]) => [m, s.ore, s.target, s.priority ? 1 : 0, metrics.subjects[m]?.exactAvg ?? 0, s.grades.length]);
+    return hashText(JSON.stringify([today, state.plan.prefs, occ, subs, state.timetable, state.settings.calc.riskThreshold, state.settings.modules, state.plan.removed]));
+}
+
+/** Cererile de studiu: ce ar trebui făcut, cu zilele potrivite în ordinea preferinței. */
+function planDemands(today) {
+    const S = state.plan.prefs.session;
+    const half = Math.max(15, Math.round(S / 2 / 5) * 5);
+    const days = planDays(today);
+    const inPlan = date => date >= today && date <= days[days.length - 1];
+    const links = gradeLinks();
+    const out = [];
+    const push = d => out.push({ ...d, candidates: d.candidates.filter(inPlan) });
+
+    // 1. Testele (până la 10 zile înainte)
+    occurrencesBetween(addDays(today, 1), addDays(today, PLAN_DAYS + 3)).forEach(o => {
+        if (!NEEDS_GRADE.has(o.ev.type) || !state.subjects[o.ev.subject] || isOccurrenceDone(o.ev, o.date, links)) return;
+        const D = daysBetween(today, o.date);
+        const at = k => addDays(o.date, -k);
+        const base = { mat: o.ev.subject, test: true };
+        const why = from => `pentru ${eventPhrase(o.ev.type, o.date, from)}`;
+        if (D >= 4) push({ ...base, id: `t|${o.key}|learn`, kind: "learn", min: S, prio: 100 - D, candidates: [at(4), at(3), at(5), at(2)], why });
+        if (D >= 2) push({ ...base, id: `t|${o.key}|practice`, kind: "practice", min: S, prio: 101 - D, candidates: [at(2), at(3), at(1)], why });
+        push({ ...base, id: `t|${o.key}|review`, kind: "review", min: D === 1 ? S : half, prio: 102 - D, candidates: [at(1), at(2)], why });
+    });
+    // 2. Temele
+    occurrencesBetween(addDays(today, 1), addDays(today, PLAN_DAYS)).forEach(o => {
+        if (o.ev.type !== "Temă" || !state.subjects[o.ev.subject] || isOccurrenceDone(o.ev, o.date, links)) return;
+        const D = daysBetween(today, o.date);
+        push({ id: `h|${o.key}`, mat: o.ev.subject, kind: "homework", min: S, prio: 95 - D, test: true,
+            candidates: [addDays(o.date, -1), addDays(o.date, -2)], why: from => eventPhrase("Temă", o.date, from) });
+    });
+    // 3. Materiile la risc și cele sub țintă
+    const risk = state.settings.calc.riskThreshold;
+    const spread = [1, 3, 5, 0, 2, 4, 6].map(i => days[i]);
+    const classEves = mat => days.filter(d => lessonsOn(addDays(d, 1)).includes(mat));
+    const orderFor = mat => [...new Set([...classEves(mat), ...spread])];
+    const need = [];
+    statsEntries().forEach(e => {
+        if (e.standing.key === "risk") {
+            const p = planForCondition(e.mat, d => d.exactAvg >= risk);
+            need.push({ e, prio: 80 + Math.min(8, (risk - e.d.rawAvg) * 2), count: 2, why: () => `ca să ieși din risc (${p.next ? `${planPill(p).text} la următoarea notă` : `îți trebuie ${planPill(p).text}`})` });
+        } else if (e.standing.key === "below") {
+            need.push({ e, prio: 60 + Math.min(8, Math.max(0, targetGap(e)) * 4) + (e.sub.priority ? 8 : 0), count: e.sub.priority ? 2 : 1, why: () => `ca să ajungi la ținta de ${fmtTarget(e.sub.target)}` });
+        }
+    });
+    need.sort((a, b) => b.prio - a.prio).forEach(n => {
+        const order = orderFor(n.e.mat);
+        for (let k = 1; k <= n.count; k++) {
+            // a doua sesiune: pornește de la mijlocul săptămânii, ca să nu cadă lângă prima
+            const cand = k === 1 ? order : [...order.slice(Math.ceil(order.length / 2)), ...order.slice(0, Math.ceil(order.length / 2))];
+            push({ id: `s|${n.e.mat}|${k}`, mat: n.e.mat, kind: "practice", min: S, prio: n.prio - k, candidates: cand, why: n.why });
+        }
+    });
+    // 4. Timp rămas: încă o recapitulare pentru cine are nevoie
+    need.forEach(n => push({ id: `x|${n.e.mat}`, mat: n.e.mat, kind: "review", min: S, prio: 20 + n.prio / 10,
+        candidates: [...spread].reverse(), why: () => "ca să fixezi ce ai învățat" }));
+    return out.sort((a, b) => b.prio - a.prio);
+}
+
+/** Reface planul pe următoarele 7 zile; păstrează istoricul, sesiunile bifate și pe cele schimbate de elev. */
+function buildPlan(today = getLocalDateKey()) {
+    const p = state.plan;
+    const days = planDays(today);
+    const end = days[days.length - 1];
+    const kept = p.items.filter(it => it.date < today || it.done || (it.manual && it.date <= end && state.subjects[it.mat]));
+    const recent = addDays(today, -10);
+    const satisfied = new Set(kept.filter(it => it.demand && (it.date >= today || (it.done && it.date >= recent))).map(it => it.demand));
+    const cap = Object.fromEntries(days.map(d => [d, planMinutesOn(d)]));
+    const busy = new Map(days.map(d => [d, new Set()]));
+    kept.filter(it => it.date >= today && it.date <= end).forEach(it => {
+        cap[it.date] -= it.min;
+        busy.get(it.date).add(it.mat);
+    });
+
+    const fresh = [];
+    planDemands(today).forEach(d => {
+        if (satisfied.has(d.id) || p.removed[d.id] || !d.candidates.length) return;
+        let date = d.candidates.find(c => cap[c] >= d.min && !busy.get(c).has(d.mat));
+        if (!date && d.test) date = d.candidates.find(c => !busy.get(c).has(d.mat)) || d.candidates[0]; // testele încap oricum
+        if (!date) return;
+        cap[date] -= d.min;
+        busy.get(date).add(d.mat);
+        satisfied.add(d.id);
+        fresh.push({ id: `${d.id}|${date}`, date, mat: d.mat, kind: d.kind, min: d.min, reason: d.why(date), done: false, manual: false, demand: d.id });
+    });
+    p.items = [...kept, ...fresh];
+    p.sig = planSignature(today);
+}
+
+/** Apelată la fiecare calcul: reface planul doar dacă s-a schimbat ceva care îl influențează. */
+function updatePlan() {
+    if (!state.plan.prefs.setup) return;
+    const today = getLocalDateKey();
+    if (planSignature(today) !== state.plan.sig) buildPlan(today);
+}
+
+const planItemsOn = date => state.plan.items
+    .filter(it => it.date === date)
+    .sort((a, b) => Number(a.done) - Number(b.done) || PLAN_KINDS[a.kind].rank - PLAN_KINDS[b.kind].rank || a.mat.localeCompare(b.mat, "ro"));
+
+/** Zile la rând cu planul făcut (zilele fără sesiuni nu rup șirul; azi nu-l rupe cât timp nu s-a terminat). */
+function planStreak(today = getLocalDateKey()) {
+    let count = 0;
+    for (let i = 0; i < PLAN_KEEP_DAYS; i++) {
+        const date = addDays(today, -i);
+        const items = state.plan.items.filter(it => it.date === date);
+        if (!items.length) continue;
+        if (items.every(it => it.done)) count++;
+        else if (i > 0) break;
+    }
+    return count;
+}
+
+function planWeekProgress(today = getLocalDateKey()) {
+    const end = addDays(today, PLAN_DAYS - 1);
+    const items = state.plan.items.filter(it => it.date >= today && it.date <= end);
+    const done = items.filter(it => it.done);
+    return { total: items.length, done: done.length, minutes: items.reduce((n, it) => n + it.min, 0), doneMinutes: done.reduce((n, it) => n + it.min, 0) };
+}
+
+/** Ținte pe modul: ce notă trebuie, unde, pentru materiile care au nevoie. */
+function planGoals() {
+    const risk = state.settings.calc.riskThreshold;
+    const nextTest = mat => upcomingForSubject(mat, 6).find(ev => NEEDS_GRADE.has(ev.type));
+    const goals = statsEntries()
+        .filter(e => e.standing.key === "risk" || e.standing.key === "below")
+        .sort((a, b) => STANDING_RANK[a.standing.key] - STANDING_RANK[b.standing.key] || a.d.rawAvg - b.d.rawAvg)
+        .map(e => {
+            const isRisk = e.standing.key === "risk";
+            const plan = planForCondition(e.mat, isRisk ? d => d.exactAvg >= risk : d => reachesTarget(d, e.sub.target));
+            return { mat: e.mat, avg: e.d.exactAvg, risk: isRisk, goal: isRisk ? `ieși din risc (${risk.toFixed(2)})` : `ajungi la ${fmtTarget(e.sub.target)}`, pill: planPill(plan), plan, test: nextTest(e.mat) };
+        });
+    Object.entries(state.subjects).forEach(([mat, sub]) => {
+        const test = !sub.grades.length && nextTest(mat);
+        if (test) goals.push({ mat, avg: 0, first: true, goal: "prima notă", test });
+    });
+    return goals;
+}
+
+/* ---------- desenare ---------- */
+function planItemHTML(it, { compact = false } = {}) {
+    const k = PLAN_KINDS[it.kind];
+    const id = escapeHTML(it.id);
+    const label = `${it.mat}: ${k.label}, ${it.min} minute`;
+    return `
+        <li class="plan-item ${it.done ? "is-done" : ""} kind-${it.kind}">
+            <label class="plan-check">
+                <input type="checkbox" data-action="plan-toggle" data-id="${id}" ${it.done ? "checked" : ""} aria-label="${escapeHTML(`${it.done ? "Făcut" : "De făcut"}: ${label}`)}">
+                <span class="plan-box" aria-hidden="true">${icon("check")}</span>
+            </label>
+            <span class="plan-main">
+                <b>${escapeHTML(it.mat)}</b>
+                <small><span class="plan-kind">${icon(k.icon)} ${k.label}</span> · ${it.min} min${it.reason ? ` · ${escapeHTML(it.reason)}` : ""}</small>
+            </span>
+            ${compact ? "" : `
+                <span class="plan-tools">
+                    <button type="button" class="icon-btn btn btn-text" data-action="plan-move" data-id="${id}" aria-label="${escapeHTML(`Mută: ${label}`)}" title="Mută în altă zi">${icon("arrows-v")}</button>
+                    <button type="button" class="icon-btn btn btn-text" data-action="plan-delete" data-id="${id}" aria-label="${escapeHTML(`Șterge: ${label}`)}" title="Scoate din plan">${icon("trash")}</button>
+                </span>`}
+        </li>`;
+}
+
+function planDayLabel(date, today) {
+    const n = daysBetween(today, date);
+    const wd = WEEKDAY_LONG[parseDateKey(date).getDay()];
+    return n === 0 ? `Azi · ${wd}` : n === 1 ? `Mâine · ${wd}` : longDateLabel(date);
+}
+
+function planPrefsHTML(prefix = "plan") {
+    const p = state.plan.prefs;
+    const opts = (list, value, fmt) => list.map(v => `<option value="${v}" ${v === value ? "selected" : ""}>${fmt(v)}</option>`).join("");
+    const minFmt = v => v === 0 ? "deloc" : v < 60 ? `${v} min` : `${Math.floor(v / 60)} h${v % 60 ? ` ${v % 60} min` : ""}`;
+    const near = (list, v) => list.reduce((best, x) => Math.abs(x - v) < Math.abs(best - v) ? x : best, list[0]);
+    return `
+        <div class="plan-prefs">
+            <div class="form-group">
+                <label for="${prefix}-school">În zilele de școală pot învăța</label>
+                <select id="${prefix}-school" class="glass-select">${opts(PLAN_MINUTES, near(PLAN_MINUTES, p.school), minFmt)}</select>
+            </div>
+            <div class="form-group">
+                <label for="${prefix}-weekend">În weekend și în vacanță</label>
+                <select id="${prefix}-weekend" class="glass-select">${opts(PLAN_MINUTES, near(PLAN_MINUTES, p.weekend), minFmt)}</select>
+            </div>
+            <div class="form-group">
+                <label for="${prefix}-session">O sesiune durează</label>
+                <select id="${prefix}-session" class="glass-select">${opts(PLAN_SESSIONS, p.session, v => `${v} min`)}</select>
+            </div>
+            <div class="form-group">
+                <label for="${prefix}-rest">Zi liberă</label>
+                <select id="${prefix}-rest" class="glass-select">
+                    <option value="-1" ${p.rest === -1 ? "selected" : ""}>Fără zi liberă</option>
+                    ${WEEKDAY_ORDER.map(wd => `<option value="${wd}" ${p.rest === wd ? "selected" : ""}>${WEEKDAY_LONG[wd]}</option>`).join("")}
+                </select>
+            </div>
+            <label class="check-row plan-cal-row"><input type="checkbox" id="${prefix}-calendar" ${p.calendar ? "checked" : ""}> Arată sesiunile și în Calendar</label>
+        </div>`;
+}
+
+function readPlanPrefs(prefix = "plan") {
+    const p = state.plan.prefs;
+    p.school = clampInteger(field(`${prefix}-school`), 0, 600, p.school);
+    p.weekend = clampInteger(field(`${prefix}-weekend`), 0, 600, p.weekend);
+    p.session = PLAN_SESSIONS.includes(Number(field(`${prefix}-session`))) ? Number(field(`${prefix}-session`)) : p.session;
+    const rest = Number(field(`${prefix}-rest`));
+    p.rest = Number.isInteger(rest) && rest >= -1 && rest <= 6 ? rest : -1;
+    p.calendar = Boolean($(`${prefix}-calendar`)?.checked);
+    p.setup = true;
+}
+
+function renderPlan() {
+    const box = $("plan-body");
+    if (!box) return;
+    const p = state.plan;
+    const tools = $("plan-tools");
+    if (tools) tools.hidden = !p.prefs.setup;
+    if (!p.prefs.setup) {
+        box.innerHTML = `
+            <section class="glass-card plan-setup" aria-labelledby="plan-setup-title">
+                <div class="plan-setup-buddy" aria-hidden="true">${buddySVG("happy")}</div>
+                <div class="plan-setup-main">
+                    <h3 id="plan-setup-title">Hai să-ți facem un plan${firstName() ? `, ${escapeHTML(firstName())}` : ""}!</h3>
+                    <p class="subtitle">Spune-mi cât timp ai, iar eu împart săptămâna: înainte de teste, pentru teme și pentru materiile care au nevoie de tine. Îl poți schimba oricând.</p>
+                    ${planPrefsHTML("plan")}
+                    <button type="button" class="btn btn-primary" data-action="plan-create">${icon("sparkles")} Fă-mi planul</button>
+                </div>
+            </section>`;
+        return;
+    }
+    const today = getLocalDateKey();
+    const prog = planWeekProgress(today);
+    const streak = planStreak(today);
+    const goals = planGoals();
+    const days = planDays(today);
+    const mod = moduleAt(today);
+    const pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
+
+    box.innerHTML = `
+        <div class="plan-grid">
+            <section class="glass-card plan-week" aria-labelledby="plan-week-title">
+                <div class="azi-card-head"><h3 id="plan-week-title">${icon("calendar-check")} Săptămâna mea</h3>
+                    <span class="cat-count">${prog.total ? `${prog.done} din ${prog.total}` : "liber"}</span></div>
+                ${days.map(date => {
+                    const items = planItemsOn(date);
+                    const minutes = planMinutesOn(date);
+                    const used = items.reduce((n, it) => n + it.min, 0);
+                    return `
+                    <div class="plan-day ${date === today ? "is-today" : ""}">
+                        <div class="plan-day-head">
+                            <h4>${escapeHTML(planDayLabel(date, today))}</h4>
+                            <span class="plan-day-time">${minutes === 0 && !items.length ? "zi liberă" : `${used} / ${minutes} min`}</span>
+                        </div>
+                        ${items.length ? `<ul class="plan-list">${items.map(it => planItemHTML(it)).join("")}</ul>`
+                            : `<p class="plan-empty">${minutes === 0 ? "Odihnă. Te-ai descurcat bine săptămâna asta." : "Nimic programat: timp liber sau de citit ce-ți place."}</p>`}
+                    </div>`;
+                }).join("")}
+            </section>
+            <div class="plan-side">
+                <section class="glass-card plan-progress" aria-labelledby="plan-progress-title">
+                    <div class="azi-card-head"><h3 id="plan-progress-title">${icon("trend-up")} Progres</h3></div>
+                    <div class="plan-stats">
+                        <div><b>${pct}%</b><small>din săptămână</small></div>
+                        <div><b>${streak}</b><small>${streak === 1 ? "zi la rând" : "zile la rând"}</small></div>
+                        <div><b>${prog.doneMinutes}</b><small>minute învățate</small></div>
+                    </div>
+                    <div class="plan-bar" role="progressbar" aria-label="Progresul săptămânii" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
+                </section>
+                <section class="glass-card plan-goals" aria-labelledby="plan-goals-title">
+                    <div class="azi-card-head"><h3 id="plan-goals-title">${icon("target")} Ținte pe modul</h3></div>
+                    ${mod ? `<p class="subtitle">Până la sfârșitul modulului ${mod.n} (${escapeHTML(longDateLabel(mod.end).split(", ")[1])}).</p>` : ""}
+                    ${goals.length ? `<ul class="plan-goal-list">${goals.map(g => `
+                        <li><button type="button" class="azi-watch-row" data-action="open-subject" data-mat="${escapeHTML(g.mat)}">
+                            <span class="azi-watch-main"><b>${escapeHTML(g.mat)}</b>
+                                <small>${g.first
+                                    ? `Prima notă: ${escapeHTML(eventPhrase(g.test.type, g.test.date, today))}.`
+                                    : `Ca să ${escapeHTML(g.goal)}: ${g.plan.next ? `<span class="azi-need is-${g.pill.tone}">${escapeHTML(g.pill.text)}</span> la următoarea notă` : `<span class="azi-need is-${g.pill.tone}">${escapeHTML(g.pill.text)}</span>`}${g.test ? ` (${escapeHTML(eventPhrase(g.test.type, g.test.date, today))})` : ""}.`}</small>
+                            </span>
+                            ${g.first ? "" : `<span class="azi-lesson-avg tone-${gradeTone(g.avg)}">${g.avg.toFixed(2)}</span>`}
+                        </button></li>`).join("")}</ul>`
+                        : emptyNote(Object.keys(state.subjects).length ? "Toate materiile sunt la țintă. Planul se ocupă doar de teste și teme." : "Adaugă-ți materiile ca să-ți pot face ținte.")}
+                </section>
+            </div>
+        </div>`;
+}
+
+/** Cardul „Planul de azi” de pe pagina Azi. */
+function homePlanHTML(today) {
+    if (!state.plan.prefs.setup) {
+        return `
+            ${homeCardHead("azi-plan-title", "calendar-check", "Planul de azi")}
+            <p class="azi-more-line">Spune-mi cât timp ai de învățat și îți împart săptămâna pe teste, teme și materiile care au nevoie.</p>
+            <button type="button" class="btn btn-primary btn-sm" data-action="nav" data-tab="tab-plan">${icon("sparkles")} Fă-ți un plan</button>`;
+    }
+    const items = planItemsOn(today);
+    const done = items.filter(it => it.done).length;
+    const next = items.length ? null : state.plan.items.filter(it => it.date > today && !it.done).sort((a, b) => a.date.localeCompare(b.date))[0];
+    return `
+        ${homeCardHead("azi-plan-title", "calendar-check", "Planul de azi", items.length ? `<span class="cat-count">${done} din ${items.length}</span>` : "")}
+        ${items.length
+            ? `<ul class="plan-list is-compact">${items.map(it => planItemHTML(it, { compact: true })).join("")}</ul>
+               ${done === items.length ? `<p class="plan-done-line">${icon("check-circle")} Gata pe azi! ${planStreak(today) > 1 ? `${planStreak(today)} zile la rând.` : ""}</p>` : ""}`
+            : `<p class="azi-more-line">Azi n-ai nimic în plan.${next ? ` Următoarea sesiune: ${escapeHTML(next.mat)}, ${escapeHTML(relativeDay(next.date))}.` : ""}</p>`}
+        <button type="button" class="btn btn-text btn-sm" data-action="nav" data-tab="tab-plan">${icon("calendar-check")} Tot planul</button>`;
+}
+
+/* ---------- acțiuni ---------- */
+const findPlanItem = id => state.plan.items.find(it => it.id === id);
+
+function togglePlanItem(el) {
+    const it = findPlanItem(el.dataset.id);
+    if (!it) return;
+    it.done = Boolean(el.checked);
+    const today = getLocalDateKey();
+    const todays = state.plan.items.filter(x => x.date === today);
+    refresh();
+    if (it.done && it.date === today) buddyReact(todays.every(x => x.done) ? "love" : "giggle");
+    // focusul rămâne pe aceeași bifă după redesenare
+    document.querySelector(`[data-action="plan-toggle"][data-id="${CSS.escape(it.id)}"]`)?.focus();
+}
+
+function openPlanMove(id) {
+    const it = findPlanItem(id);
+    if (!it) return;
+    const today = getLocalDateKey();
+    openModal({
+        title: `Mută: ${it.mat}`,
+        confirmText: "",
+        cancelText: "Renunță",
+        body: `
+            <p class="modal-hint">În ce zi vrei să faci sesiunea „${escapeHTML(PLAN_KINDS[it.kind].label)}” (${it.min} min)?</p>
+            <div class="plan-move-days">
+                ${planDays(today).map(d => `<button type="button" class="btn ${d === it.date ? "btn-primary" : "btn-glass"}" data-action="plan-move-to" data-id="${escapeHTML(it.id)}" data-date="${d}" ${d === it.date ? 'aria-current="true"' : ""}>${escapeHTML(planDayLabel(d, today))}</button>`).join("")}
+            </div>`
+    });
+}
+
+function movePlanItem(id, date) {
+    const it = findPlanItem(id);
+    if (!it || !DATE_KEY_RE.test(date)) return;
+    it.date = date;
+    it.manual = true;
+    closeActionModal();
+    refresh();
+    showToast(`Am mutat ${it.mat} pe ${planDayLabel(date, getLocalDateKey()).toLocaleLowerCase("ro")}.`);
+}
+
+function deletePlanItem(id) {
+    const it = findPlanItem(id);
+    if (!it) return;
+    withUndo(`Am scos ${it.mat} din plan.`, () => {
+        state.plan.items = state.plan.items.filter(x => x !== it);
+        if (it.demand) state.plan.removed[it.demand] = addDays(getLocalDateKey(), PLAN_DAYS); // nu-l pune la loc săptămâna asta
+    });
+}
+
+function openPlanAdd() {
+    const mats = Object.keys(state.subjects);
+    if (!mats.length) {
+        showToast("⚠️ Adaugă întâi o materie în catalog.");
+        return;
+    }
+    const today = getLocalDateKey();
+    openModal({
+        title: "Adaugă o sesiune",
+        confirmText: "Adaugă",
+        body: `
+            <div class="form-group"><label for="plan-add-mat">Materia</label>
+                <select id="plan-add-mat" class="glass-select">${mats.map(m => `<option>${escapeHTML(m)}</option>`).join("")}</select></div>
+            <div class="form-group"><label for="plan-add-day">Ziua</label>
+                <select id="plan-add-day" class="glass-select">${planDays(today).map(d => `<option value="${d}">${escapeHTML(planDayLabel(d, today))}</option>`).join("")}</select></div>
+            <div class="form-group"><label for="plan-add-kind">Ce faci</label>
+                <select id="plan-add-kind" class="glass-select">${Object.entries(PLAN_KINDS).map(([k, v]) => `<option value="${k}" ${k === "practice" ? "selected" : ""}>${v.label}</option>`).join("")}</select></div>
+            <div class="form-group"><label for="plan-add-min">Cât timp</label>
+                <select id="plan-add-min" class="glass-select">${PLAN_SESSIONS.map(v => `<option value="${v}" ${v === state.plan.prefs.session ? "selected" : ""}>${v} min</option>`).join("")}</select></div>`,
+        onConfirm: () => {
+            const mat = field("plan-add-mat");
+            const date = field("plan-add-day");
+            if (!state.subjects[mat] || !DATE_KEY_RE.test(date)) return;
+            const kind = PLAN_KINDS[field("plan-add-kind")] ? field("plan-add-kind") : "practice";
+            state.plan.items.push({ id: `m|${uid()}`, date, mat, kind, min: clampInteger(field("plan-add-min"), 5, 240, 30), reason: "adăugată de tine", done: false, manual: true, demand: "" });
+            closeActionModal();
+            refresh();
+            showToast(`✅ Am pus ${mat} în plan.`);
+        }
+    });
+}
+
+function openPlanPrefs() {
+    openModal({
+        title: "Timpul meu de învățat",
+        confirmText: "Salvează și refă planul",
+        body: planPrefsHTML("planm"),
+        onConfirm: () => {
+            readPlanPrefs("planm");
+            closeActionModal();
+            rebuildPlanNow();
+        }
+    });
+}
+
+function rebuildPlanNow() {
+    // Refacerea de mână pune la loc și ce ai scos din plan săptămâna asta (dar nu atinge ce ai bifat sau mutat).
+    state.plan.removed = {};
+    buildPlan();
+    refresh();
+    showToast("✅ Planul a fost refăcut.");
+}
+
+/** Mascota reacționează scurt (fără text) — ex. când bifezi o sesiune. */
+function buddyReact(mood) {
+    const btn = document.querySelector("#azi-buddy .buddy-poke");
+    if (!btn) return;
+    btn.innerHTML = buddySVG(mood);
+    clearTimeout(buddyPoke.timer);
+    buddyPoke.timer = setTimeout(() => {
+        if (buddyPoke.rest && document.contains(btn)) btn.innerHTML = buddySVG(buddyPoke.rest.mood);
+    }, 3500);
+}
+
+const PLAN_ACTIONS = {
+    "plan-toggle": el => togglePlanItem(el),
+    "plan-move": el => openPlanMove(el.dataset.id),
+    "plan-move-to": el => movePlanItem(el.dataset.id, el.dataset.date),
+    "plan-delete": el => deletePlanItem(el.dataset.id),
+    "plan-add": () => openPlanAdd(),
+    "plan-prefs": () => openPlanPrefs(),
+    "plan-rebuild": () => rebuildPlanNow(),
+    "plan-create": () => {
+        readPlanPrefs("plan");
+        buildPlan();
+        refresh();
+        const n = planWeekProgress().total;
+        showToast(n ? `✅ Gata! Ți-am pus ${plural(n, "sesiune", "sesiuni")} în următoarele 7 zile.` : "✅ Planul e gata. Momentan nu e nimic urgent de pus în el.");
+        buddyReact("love");
+    }
+};
+
 /* ==================== TUR GHIDAT (pentru cei noi) ==================== */
 /*
  * Mascota îl plimbă pe elev prin aplicație: un „reflector” peste fiecare zonă importantă
@@ -5083,6 +5656,7 @@ function tourSteps() {
     return [
         { text: `Salut${hey}! Eu sunt ${buddyName()}, colegul tău de bancă. În mai puțin de un minut îți arăt cum merge urNotes.` },
         { target: ".azi-head-text", text: "Asta e pagina Azi. În fiecare zi găsești aici ce ore ai, ce teste urmează și ce note mai aștepți." },
+        { target: phone ? "#azi-plan" : navSel("tab-plan"), text: "La „Plan” îți fac un program de învățat pe 7 zile: înainte de teste, pentru teme și pentru materiile care au nevoie. Tu bifezi ce ai făcut." },
         { target: phone ? ".mobile-add" : "#quick-add-btn", text: `Cu „Adaugă” pui o notă, un test, o temă sau o materie nouă.${phone ? "" : " Merge și tasta N."}` },
         { target: navSel("tab-catalog"), text: "În Catalog ai toate materiile, cu notele și mediile lor. Deschide o materie ca să vezi ce notă îți trebuie ca să-ți atingi ținta." },
         { target: navSel("tab-calendar"), text: "Calendarul ține testele, tezele și temele. Când primești nota, o treci direct din calendar." },
@@ -7046,7 +7620,8 @@ function buildBackup() {
             achievements: state.achievements,
             history: state.history,
             alertMeta: state.alertMeta,
-            simulator: sim
+            simulator: sim,
+            plan: state.plan
         }
     };
 }
@@ -7364,7 +7939,7 @@ function switchTab(tabId) {
     if (changed && window.scrollY > 0) window.scrollTo({ top: 0 });
 
     document.querySelectorAll(".tab-content").forEach(el => el.classList.toggle("active", el.id === tabId));
-    $("more-btn")?.classList.toggle("is-active", tabId === "tab-simulator" || tabId === "tab-setari");
+    $("more-btn")?.classList.toggle("is-active", tabId === "tab-simulator" || tabId === "tab-setari" || tabId === "tab-plan");
     document.querySelectorAll("[data-action='nav']").forEach(btn => {
         const active = btn.dataset.tab === tabId;
         btn.classList.toggle("active", active && (btn.classList.contains("tab-btn") || btn.classList.contains("mobile-nav-btn")));
@@ -7401,7 +7976,9 @@ const CMDK_ACTIONS = [
     { label: "Exportă backup", icon: "download", words: "backup export salvare fisier", run: () => exportBackup() },
     { label: "Schimbă tema (luminoasă / întunecată)", icon: "moon", words: "tema intunecat luminos dark light", run: () => toggleTheme() },
     { label: "Setări", icon: "settings", words: "setari preferinte", run: () => switchTab("tab-setari") },
-    { label: "Turul aplicației", icon: "sparkles", words: "tur ghid tutorial ajutor cum merge", run: () => startTour() }
+    { label: "Turul aplicației", icon: "sparkles", words: "tur ghid tutorial ajutor cum merge", run: () => startTour() },
+    { label: "Planul meu", icon: "calendar-check", words: "plan studiu invatat program sesiuni", run: () => switchTab("tab-plan") },
+    { label: "Adaugă o sesiune în plan", icon: "plus", words: "plan sesiune studiu adauga", run: () => { switchTab("tab-plan"); if (state.plan.prefs.setup) openPlanAdd(); } }
 ];
 
 const cmdk = { items: [], active: 0, returnFocus: null };
@@ -7597,7 +8174,8 @@ const MORE_ACTIONS = {
     setup: () => openSetup(0),
     backup: () => exportBackup(),
     account: () => openAccountPanel(),
-    tour: () => startTour()
+    tour: () => startTour(),
+    plan: () => switchTab("tab-plan")
 };
 
 function openMoreMenu() {
@@ -7809,7 +8387,7 @@ function showToast(msg, { action = "", onAction = null, duration = 3000 } = {}) 
  * nu s-a mai salvat nimic altceva (altfel ar șterge și modificările făcute după).
  */
 const UNDO_MS = 7000;
-const UNDO_KEYS = ["subjects", "calendar", "timetable", "purtare", "activity", "history", "alertMeta", "achievements"];
+const UNDO_KEYS = ["subjects", "calendar", "timetable", "purtare", "activity", "history", "alertMeta", "achievements", "plan"];
 let saveCounter = 0;
 let pendingUndo = null;
 
@@ -8575,7 +9153,8 @@ const ACTIONS = {
     "modal-cancel": () => closeActionModal(),
     "none": () => {},
     ...ACCOUNT_ACTIONS,
-    ...TOUR_ACTIONS
+    ...TOUR_ACTIONS,
+    ...PLAN_ACTIONS
 };
 
 function bindEvents() {
