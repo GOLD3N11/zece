@@ -635,7 +635,7 @@ function openPurtareModal(key) {
             <p class="modal-hint">${escapeHTML(moduleRange(m))}. Fiecare modul pornește de la 10; modifică nota doar dacă a fost scăzută.</p>
             <div class="form-group">
                 <label for="purtare-val">Nota la purtare (1-10)</label>
-                <input type="number" id="purtare-val" class="glass-input" min="1" max="10" step="1" value="${m.val}" inputmode="numeric">
+                <select id="purtare-val" class="glass-select">${[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(v => `<option value="${v}" ${v === Number(m.val) ? "selected" : ""}>${v}</option>`).join("")}</select>
             </div>
             <div class="form-group">
                 <label for="purtare-reason">Motiv <span class="label-hint">(opțional)</span></label>
@@ -671,12 +671,13 @@ function setPurtare(m, val, reason) {
 function renderModulesSettings(list = state.settings.modules) {
     const box = $("set-modules");
     if (!box) return;
+    // Datele vin din structura oficială a anului școlar: se alege doar varianta (vacanța mobilă a județului).
     box.innerHTML = list.map((m, i) => `
         <div class="module-row">
             <b>Modulul ${i + 1}</b>
-            <input type="date" id="set-mod-${i}-start" class="glass-input" value="${escapeHTML(m.start)}" aria-label="Modulul ${i + 1}: început">
-            <span aria-hidden="true">–</span>
-            <input type="date" id="set-mod-${i}-end" class="glass-input" value="${escapeHTML(m.end)}" aria-label="Modulul ${i + 1}: sfârșit">
+            <span class="module-dates">${escapeHTML(getShortDateLabel(m.start))} – ${escapeHTML(getShortDateLabel(m.end))}</span>
+            <input type="hidden" id="set-mod-${i}-start" value="${escapeHTML(m.start)}">
+            <input type="hidden" id="set-mod-${i}-end" value="${escapeHTML(m.end)}">
         </div>`).join("");
     syncModulePresetSelect();
 }
@@ -871,7 +872,7 @@ function normalizeState(s) {
     for (const [mat, sub] of Object.entries(isPlainObject(s.subjects) ? s.subjects : {})) {
         if (!isPlainObject(sub) || !mat.trim() || mat === "__proto__" || mat === PURTARE_KEY) continue;
         subjects[mat] = {
-            ore: clampNumber(sub.ore, 0.5, 100, 2),
+            ore: clampNumber(sub.ore, 0.5, MAX_ORE, 2),
             target: clampNumber(sub.target, 1, 10, 10),
             grades: (Array.isArray(sub.grades) ? sub.grades : []).map(normalizeGrade).filter(Boolean),
             priority: Boolean(sub.priority),
@@ -1206,6 +1207,7 @@ function addActivity(text) {
  */
 function refresh() {
     guestGuard(); // vizitatorii nu pot schimba nimic: o modificare ajunsă în date se anulează aici
+    syncProgrammeHours();
     metrics = calculateMetrics();
     checkModuleRollover();
     updateHistoryPoint();
@@ -2370,9 +2372,6 @@ function renderCatalogDetail() {
             </section>
 
             <footer class="cat-detail-foot">
-                <button type="button" class="btn btn-text" data-action="toggle-exclude" data-mat="${safeMat}">
-                    ${sub.excludeFromGPA ? `${icon("undo")} Include în media generală` : `${icon("ban")} Exclude din media generală`}
-                </button>
                 <button type="button" class="btn btn-text text-danger" data-action="delete-subject" data-mat="${safeMat}">${icon("trash")} Șterge materia</button>
             </footer>
         </div>`;
@@ -3249,7 +3248,16 @@ const SETTINGS_FIELDS = {
 function loadSettingsIntoUI() {
     for (const [id, [group, key]] of Object.entries(SETTINGS_FIELDS)) {
         const el = $(id);
-        if (el) el.value = state.settings[group][key];
+        if (!el) continue;
+        const v = state.settings[group][key];
+        // o valoare mai veche, care nu e în listă, rămâne vizibilă ca opțiune
+        if (el.tagName === "SELECT" && ![...el.options].some(o => o.value === String(v))) {
+            const opt = document.createElement("option");
+            opt.value = String(v);
+            opt.textContent = String(v);
+            el.append(opt);
+        }
+        el.value = v;
     }
     renderModulesSettings();
     renderBackupStatus();
@@ -4978,6 +4986,8 @@ const SETUP_STEPS = ["Profil", "Materii", "Ținte", "Orar"];
 const LICEU = [9, 10, 11, 12];
 const ROMAN = { 5: "V", 6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X", 11: "XI", 12: "XII" };
 const LM2 = ["Limba franceză", { hint: "limba modernă 2" }];
+const MAX_ORE = 7; // cea mai mare normă dintr-un plan-cadru (Informatică, intensiv, a XI-a)
+const TARGET_CHOICES = [5, 6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 const LM2_CHOICES = ["Limba franceză", "Limba germană", "Limba spaniolă", "Limba italiană", "Limba rusă", "Limba portugheză"];
 /* Dirigenția: în gimnaziu și în noua clasă a IX-a apare în planul-cadru sub alt nume; la celelalte clase o adăugăm noi. */
 const DIRIG = "Dirigenție";
@@ -5380,7 +5390,9 @@ function programmeRows(profile, cls, variantId, lm2 = LM2_CHOICES[0]) {
 function setupRowsFor(profile, cls, variantId, lm2) {
     return programmeRows(profile, cls, variantId, lm2).map(r => {
         const existing = r.kind === "opt" ? Object.keys(state.subjects).find(isOptionalName) : findSubjectName(r.name);
-        return { ...r, on: !r.off, topic: "", exists: Boolean(existing), shown: existing || r.name };
+        // Doar ce e cu adevărat la alegere se poate debifa: religia (se poate renunța la ea) și opționalul.
+        const choice = r.kind === "opt" || r.name === "Religie" || r.off;
+        return { ...r, on: !r.off, choice, topic: "", exists: Boolean(existing), shown: existing || r.name };
     });
 }
 
@@ -5409,6 +5421,28 @@ function inProgramme(name) {
     return myProgrammeRows().some(r => r.name.toLocaleLowerCase("ro") === low)
         || DIRIG_ALIASES.some(a => a.toLocaleLowerCase("ro") === low);
 }
+/** Rândul din programă al unei materii (orele oficiale), sau null. */
+function programmeRowFor(name) {
+    const rows = myProgrammeRows();
+    if (isOptionalName(name)) return firstOptional() === name ? rows.find(r => r.kind === "opt") || null : null;
+    const low = String(name).toLocaleLowerCase("ro");
+    return rows.find(r => r.name.toLocaleLowerCase("ro") === low)
+        || (DIRIG_ALIASES.some(a => a.toLocaleLowerCase("ro") === low) ? rows.find(r => r.kind === "dirig") : null)
+        || null;
+}
+
+/** Orele nu se scriu de mână: vin din planul-cadru. Și dirigenția din liceu rămâne mereu în afara mediei. */
+function syncProgrammeHours() {
+    const sc = myProgramme();
+    if (!sc || guest.on) return;
+    for (const [mat, sub] of Object.entries(state.subjects)) {
+        const row = programmeRowFor(mat);
+        if (!row) continue;
+        if (sub.ore !== row.ore) sub.ore = row.ore;
+        if (row.kind === "dirig" && sc.cls >= 9 && !sub.excludeFromGPA) sub.excludeFromGPA = true;
+    }
+}
+
 /** Ce mai poate adăuga: materiile din programă care lipsesc din catalog (+ opționalul, dacă nu-l are). */
 function missingProgrammeRows() {
     const hasOpt = Object.keys(state.subjects).some(isOptionalName);
@@ -5542,11 +5576,11 @@ function setupSubjectsHTML() {
     const hours = on.reduce((s, r) => s + r.ore, 0);
     return `
         <h2 id="setup-title" tabindex="-1">Materiile tale${SETUP_PROFILES[ui.setup.profile]?.classes ? ` · clasa a ${ROMAN[ui.setup.cls]}-a` : ""}</h2>
-        <p class="setup-lead">Bifează ce ai în orar și corectează orele pe săptămână dacă diferă. Alege-ți limba modernă 2 și, dacă ai un opțional, scrie ce e.</p>
+        <p class="setup-lead">Materiile și orele vin din planul-cadru al clasei tale. Alege-ți limba modernă 2, debifează religia dacă nu o faci și, dacă ai un opțional, scrie ce e.</p>
         <ul class="setup-rows">
             ${rows.map((r, i) => `
                 <li class="setup-row ${r.on ? "" : "is-off"} ${r.exists ? "is-existing" : ""}" data-name="${escapeHTML(r.exists ? r.shown : r.name)}" data-kind="${r.kind}">
-                    <input type="checkbox" class="setup-check" data-i="${i}" ${r.on ? "checked" : ""} ${r.exists ? "disabled" : ""} aria-label="${escapeHTML(`Include ${r.name}`)}">
+                    <input type="checkbox" class="setup-check" data-i="${i}" ${r.on ? "checked" : ""} ${r.exists || !r.choice ? "disabled" : ""} aria-label="${escapeHTML(r.choice ? `Include ${r.name}` : `${r.name} (obligatorie)`)}">
                     <span class="setup-name-cell">
                         ${r.exists ? `<b class="setup-name-text">${escapeHTML(r.shown)}</b>`
                             : r.kind === "lm2" ? `<select class="glass-select setup-lm2" data-i="${i}" aria-label="Limba modernă 2">${LM2_CHOICES.map(l => `<option ${l === r.name ? "selected" : ""}>${escapeHTML(l)}</option>`).join("")}</select>`
@@ -5554,15 +5588,10 @@ function setupSubjectsHTML() {
                             : `<b class="setup-name-text">${escapeHTML(r.name)}</b>`}
                         ${r.hint && !r.exists ? `<small class="setup-row-hint">${escapeHTML(r.hint)}</small>` : ""}
                     </span>
-                    ${r.exists ? `<span class="setup-exists">există deja</span>` : `
-                    <span class="setup-hours" role="group" aria-label="${escapeHTML(`Ore pe săptămână la ${r.name}`)}">
-                        <button type="button" data-action="setup-hours" data-i="${i}" data-d="-1" aria-label="O oră mai puțin" ${r.ore <= 1 ? "disabled" : ""}>−</button>
-                        <b aria-live="polite">${r.ore}</b><small>${r.ore === 1 ? "oră" : "ore"}</small>
-                        <button type="button" data-action="setup-hours" data-i="${i}" data-d="1" aria-label="O oră în plus" ${r.ore >= 10 ? "disabled" : ""}>+</button>
-                    </span>`}
+                    ${r.exists ? `<span class="setup-exists">există deja</span>` : `<span class="setup-hours-fixed">${r.ore} ${r.ore === 1 ? "oră" : "ore"}</span>`}
                 </li>`).join("")}
         </ul>
-        <p class="setup-note">${icon("info")} ${helpDot("programme")} Lista vine din planul-cadru al clasei tale; poți scoate ce nu faci și corecta orele. Alte materii nu se pot adăuga.</p>
+        <p class="setup-note">${icon("info")} ${helpDot("programme")} Lista și orele vin din planul-cadru al clasei tale și nu se pot schimba. Alte materii nu se pot adăuga.</p>
         <p class="setup-count">${plural(on.length, "materie nouă", "materii noi")} · ${plural(hours, "oră", "ore")} pe săptămână · Purtarea e deja în catalog</p>`;
 }
 
@@ -7805,14 +7834,12 @@ function gradeFormHTML({ val = 10, type = "Test", date = getLocalDateKey() } = {
     const v = Number(val);
     return `
         ${subjectField}
-        <div class="grade-pick" role="group" aria-label="Alege nota">
+        <span class="form-label" id="grade-pick-l">Nota</span>
+        <div class="grade-pick" role="group" aria-labelledby="grade-pick-l">
             ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<button type="button" class="grade-pick-btn tone-${gradeTone(n)}" data-action="grade-pick" data-val="${n}" aria-pressed="${n === v}">${n}</button>`).join("")}
         </div>
         <div class="form-row">
-            <div class="form-group">
-                <label for="modal-grade-val">Nota (1-10)</label>
-                <input type="number" id="modal-grade-val" class="glass-input" min="1" max="10" step="1" value="${escapeHTML(val)}" inputmode="numeric">
-            </div>
+            <input type="hidden" id="modal-grade-val" value="${escapeHTML(val)}">
             <div class="form-group">
                 <label for="modal-grade-type">Tip evaluare</label>
                 <select id="modal-grade-type" class="glass-select">${optionsHTML(GRADE_TYPES, GRADE_TYPES.includes(type) ? type : "Altele")}</select>
@@ -7832,8 +7859,8 @@ function gradeFormHTML({ val = 10, type = "Test", date = getLocalDateKey() } = {
 function readGradeForm() {
     const val = parseStrictInteger(field("modal-grade-val"), 1, 10);
     if (val === null) {
-        showToast("⚠️ Nota trebuie să fie un număr întreg între 1 și 10.");
-        $("modal-grade-val")?.focus();
+        showToast("⚠️ Alege nota, de la 1 la 10.");
+        document.querySelector(".grade-pick-btn")?.focus();
         return null;
     }
 
@@ -7905,7 +7932,7 @@ function openAddGradeModal(presetMat = null, link = null) {
             showToast(`Ai adăugat nota ${values.val} la ${mat}.`);
         }
     });
-    $("modal-grade-val")?.select();
+    document.querySelector('.grade-pick-btn[aria-pressed="true"]')?.focus();
 }
 
 function openEditGradeModal(mat, idx) {
@@ -7940,7 +7967,7 @@ function openEditGradeModal(mat, idx) {
             showToast("Notă actualizată.");
         }
     });
-    $("modal-grade-val")?.select();
+    document.querySelector('.grade-pick-btn[aria-pressed="true"]')?.focus();
 }
 
 function deleteGrade(mat, idx) {
@@ -7983,17 +8010,17 @@ function subjectFormHTML({ name = "", ore = 2, target = 10, priority = false, ex
         ${withName ? subjectNameFieldHTML(name) : ""}
         <div class="form-row">
             <div class="form-group">
-                <label for="subj-ore">Ore / săptămână</label>
-                <input type="number" id="subj-ore" class="glass-input" value="${escapeHTML(ore)}" min="0.5" max="100" step="0.5" inputmode="decimal">
+                <span class="form-label">Ore pe săptămână</span>
+                <p class="subj-fixed" id="subj-ore-text">${fmtNumber(ore)} ${Number(ore) === 1 ? "oră" : "ore"} <small>din planul-cadru</small></p>
+                <input type="hidden" id="subj-ore" value="${escapeHTML(ore)}">
             </div>
             <div class="form-group">
                 <label for="subj-target">Ținta (media finală)</label>
-                <input type="number" id="subj-target" class="glass-input" value="${escapeHTML(target)}" min="1" max="10" step="0.5" inputmode="decimal">
+                <select id="subj-target" class="glass-select">${[...new Set([...TARGET_CHOICES, Number(target)])].sort((a, b) => a - b).map(v => `<option value="${v}" ${v === Number(target) ? "selected" : ""}>${fmtTarget(v)}</option>`).join("")}</select>
             </div>
         </div>
         ${withFlags ? `
-            <label class="check-row"><input type="checkbox" id="subj-priority" ${priority ? "checked" : ""}> ${icon("star")} Materie prioritară</label>
-            <label class="check-row"><input type="checkbox" id="subj-exclude" ${excludeFromGPA ? "checked" : ""}> ${icon("ban")} Exclusă din media generală</label>` : ""}`;
+            <label class="check-row"><input type="checkbox" id="subj-priority" ${priority ? "checked" : ""}> ${icon("star")} Materie prioritară <small class="label-hint">(primește mai mult timp în plan)</small></label>` : ""}`;
 }
 
 /**
@@ -8081,7 +8108,7 @@ function promptAddMaterie() {
             }
 
             state.subjects[name] = {
-                ore: clampNumber(field("subj-ore"), 0.5, 100, 2),
+                ore: row.ore,
                 target: clampNumber(field("subj-target"), 1, 10, 10),
                 grades: [],
                 priority: false,
@@ -8099,7 +8126,10 @@ function promptAddMaterie() {
     // alegerea materiei completează orele din planul-cadru și arată câmpul pentru opțional
     $("subj-pick")?.addEventListener("change", event => {
         const opt = event.target.selectedOptions[0];
-        if ($("subj-ore") && opt?.dataset.ore) $("subj-ore").value = opt.dataset.ore;
+        if ($("subj-ore") && opt?.dataset.ore) {
+            $("subj-ore").value = opt.dataset.ore;
+            $("subj-ore-text").innerHTML = `${opt.dataset.ore} ${opt.dataset.ore === "1" ? "oră" : "ore"} <small>din planul-cadru</small>`;
+        }
         const isOpt = event.target.value === "__opt";
         $("subj-opt-group").hidden = !isOpt;
         if (isOpt) $("subj-opt")?.focus();
@@ -8168,7 +8198,7 @@ function openEditSubjectModal(mat) {
             }
 
             const changes = [];
-            const ore = clampNumber(field("subj-ore"), 0.5, 100, sub.ore);
+            const ore = sub.ore; // orele vin din planul-cadru
             const target = clampNumber(field("subj-target"), 1, 10, sub.target);
             const priority = $("subj-priority")?.checked ?? sub.priority;
             const excludeFromGPA = $("subj-exclude")?.checked ?? sub.excludeFromGPA;

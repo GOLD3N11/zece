@@ -524,19 +524,19 @@
                         </div>
                         <div class="form-group">
                             <label for="set-target-gpa">Media generală țintă</label>
-                            <input type="number" id="set-target-gpa" class="glass-input" inputmode="decimal" step="0.01" min="5" max="10">
+                            <select id="set-target-gpa" class="glass-select"><option value="7">7.00</option><option value="7.5">7.50</option><option value="8">8.00</option><option value="8.5">8.50</option><option value="9">9.00</option><option value="9.25">9.25</option><option value="9.5">9.50</option><option value="9.75">9.75</option><option value="10">10.00</option></select>
                         </div>
                         <div class="form-group">
                             <label for="set-min-gpa">Media generală minimă acceptată</label>
-                            <input type="number" id="set-min-gpa" class="glass-input" inputmode="decimal" step="0.01" min="5" max="10">
+                            <select id="set-min-gpa" class="glass-select"><option value="5">5.00</option><option value="6">6.00</option><option value="7">7.00</option><option value="7.5">7.50</option><option value="8">8.00</option><option value="8.5">8.50</option><option value="9">9.00</option><option value="9.5">9.50</option></select>
                         </div>
                         <div class="form-group">
                             <label for="set-target-tens">Ținta pentru note de 10</label>
-                            <input type="number" id="set-target-tens" class="glass-input" inputmode="numeric" step="1" min="1" max="1000">
+                            <select id="set-target-tens" class="glass-select"><option value="5">5 note de 10</option><option value="10">10 note de 10</option><option value="15">15 note de 10</option><option value="20">20 note de 10</option><option value="25">25 note de 10</option><option value="30">30 note de 10</option><option value="40">40 note de 10</option><option value="50">50 note de 10</option></select>
                         </div>
                         <div class="form-group">
                             <label for="set-target-evals">Ținta pentru numărul de evaluări</label>
-                            <input type="number" id="set-target-evals" class="glass-input" inputmode="numeric" step="1" min="1" max="10000">
+                            <select id="set-target-evals" class="glass-select"><option value="10">10 evaluări</option><option value="20">20 evaluări</option><option value="30">30 evaluări</option><option value="40">40 evaluări</option><option value="50">50 evaluări</option><option value="60">60 evaluări</option><option value="80">80 evaluări</option><option value="100">100 evaluări</option></select>
                         </div>
                     </div>
 
@@ -558,11 +558,11 @@
                         </div>
                         <div class="form-group">
                             <label for="set-risk-gpa">Materie la risc sub media</label>
-                            <input type="number" id="set-risk-gpa" class="glass-input" inputmode="decimal" step="0.1" min="1" max="10">
+                            <select id="set-risk-gpa" class="glass-select"><option value="5">sub 5.00</option><option value="6">sub 6.00</option><option value="7">sub 7.00</option><option value="7.5">sub 7.50</option><option value="8">sub 8.00</option><option value="8.5">sub 8.50</option><option value="9">sub 9.00</option></select>
                         </div>
                         <div class="form-group">
                             <label for="set-risk-drop">Avertizează când media scade cu</label>
-                            <input type="number" id="set-risk-drop" class="glass-input" inputmode="decimal" step="0.1" min="0.1" max="5">
+                            <select id="set-risk-drop" class="glass-select"><option value="0.25">0.25 puncte</option><option value="0.5">0.50 puncte</option><option value="0.75">0.75 puncte</option><option value="1">1.00 puncte</option></select>
                         </div>
                     </div>
 
@@ -622,11 +622,11 @@
                                 <option value="2026-feb15">2026–2027 · vacanța mobilă 15–21 februarie</option>
                                 <option value="2026-feb22">2026–2027 · vacanța mobilă 22–28 februarie</option>
                                 <option value="2026-mar01">2026–2027 · vacanța mobilă 1–7 martie</option>
-                                <option value="custom">Personalizat</option>
+                                <option value="custom">Datele tale de până acum</option>
                             </select>
                         </div>
                         <div id="set-modules" class="modules-edit"></div>
-                        <p class="subtitle mt-2">Pentru un an școlar nou, modifică datele de mai sus și apasă „Salvează”.</p>
+                        <p class="subtitle mt-2">Datele vin din structura oficială a anului școlar; alege doar varianta cu vacanța mobilă din județul tău.</p>
                     </div>
 
                     <div class="glass-card settings-wide backup-card" id="backup-card">
