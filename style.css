@@ -3931,3 +3931,21 @@ body.has-island .topbar-brand { min-width: 0; }
 /* Mânerul foilor de jos: se vede mai clar, fiindcă foaia chiar se poate trage în jos ca să o închizi */
 @media (max-width: 600px) { .modal-overlay .modal-card::before { width: 44px; height: 5px; background: color-mix(in srgb, var(--text-secondary) 55%, transparent); } }
 @media (max-width: 900px) { .quick-add-card::before { width: 44px; height: 5px; background: color-mix(in srgb, var(--text-secondary) 55%, transparent); } }
+
+/* ==================== VIZITATOR ==================== */
+.guest-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    max-width: var(--page-max); margin: -8px auto 18px; padding: 10px 12px 10px 14px;
+    background: color-mix(in srgb, var(--note) 30%, var(--sheet)); color: var(--ink);
+    border: 1.5px solid color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 14px;
+    box-shadow: 2px 3px 0 color-mix(in srgb, var(--ink) 10%, transparent);
+    font-size: 13.5px; line-height: 1.4;
+}
+.guest-bar[hidden] { display: none; }
+.guest-bar-text { display: flex; align-items: flex-start; gap: 8px; flex: 1 1 260px; min-width: 0; }
+.guest-bar-text .ico { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+.guest-bar .btn { flex: none; }
+body.dark-mode .guest-bar { background: color-mix(in srgb, var(--note, #FFC93C) 16%, var(--sheet)); color: var(--text-primary); }
+/* Setările blocate pentru vizitatori: se văd, dar arată că nu se pot schimba */
+body.is-guest #tab-setari [data-guest-locked] { opacity: 0.7; cursor: not-allowed; }
+@media (max-width: 900px) { .guest-bar { margin: -6px 0 14px; } .guest-bar .btn { width: 100%; } }

@@ -918,6 +918,7 @@ function examAlertId(ev) {
 
 /** Scrie doar cheile care s-au schimbat de la ultima salvare. */
 function saveState() {
+    if (guest.on) return; // ca vizitator nu se salvează nimic (nici caietul de exemplu)
     saveCounter++;
     const payload = {
         [KEYS.settings]: state.settings,
@@ -1196,10 +1197,11 @@ function addActivity(text) {
  * Salvarea are loc înainte de randare, așa că o eroare de afișare nu poate pierde date.
  */
 function refresh() {
+    guestGuard(); // vizitatorii nu pot schimba nimic: o modificare ajunsă în date se anulează aici
     metrics = calculateMetrics();
     checkModuleRollover();
     updateHistoryPoint();
-    checkAchievements();
+    if (!guest.on) checkAchievements(); // vizitatorii (și caietul de exemplu) nu primesc realizări
     updatePlan();
     alerts = generateAlerts();
     pruneTimetable();
@@ -2576,6 +2578,7 @@ function openSubjectGlance(mat) {
     const today = getLocalDateKey();
     openModal({
         title: `${mat} · pe scurt`,
+        guestOk: true,
         confirmText: "Adaugă o notă",
         cancelText: "Închide",
         body: `
@@ -3187,6 +3190,7 @@ function loadSettingsIntoUI() {
     renderModulesSettings();
     renderBackupStatus();
     renderBuddyPreview();
+    if (guest.on) renderGuestBar(); // câmpurile rămân blocate pentru vizitatori
 }
 
 /** Mascota de lângă câmpurile „Tu și colegul tău” (Setări), cu numele scris în câmp. */
@@ -4645,6 +4649,7 @@ function openReportPanel() {
     openModal({
         layout: "panel",
         title: "Raport pentru printare",
+        guestOk: true,
         confirmText: "Printează",
         body: `
             <p class="modal-hint">Se deschide fereastra de printare a browserului. Ca să-l trimiți, alege „Salvează ca PDF”.</p>
@@ -5224,10 +5229,12 @@ function markSetupDone() {
 
 /** Asistentul apare singur doar când caietul e complet gol și nu a fost închis înainte. */
 function shouldOfferSetup() {
+    if (!canEdit()) return false;
     return !setupDone() && Object.keys(state.subjects).length === 0 && Object.keys(state.calendar).length === 0;
 }
 
 function openSetup(step = 0) {
+    if (!requireAccount()) return;
     const s = state.settings;
     ui.setup = {
         step,
@@ -6650,8 +6657,9 @@ function initCloud() {
         cloud.api = api || null;
         if (!cloud.api) {
             setSyncStatus("local");
-            // Firebase nu a putut porni (ex. fără internet la prima deschidere): aplicația merge local.
-            if (shouldOfferSetup()) openSetup(0);
+            // Firebase nu a putut porni (ex. fără internet la prima deschidere): se poate doar răsfoi.
+            cloud.seenUser = true;
+            enterGuest();
             return;
         }
         cloud.api.onUser(user => { onCloudUser(user); });
@@ -6678,16 +6686,18 @@ async function onCloudUser(user) {
     if (!user) {
         cloud.dirty = false;
         setSyncStatus("local");
+        enterGuest();
         renderAccount();
-        if (first) {
-            if (lsGet(SYNC_KEYS.choice) !== "local") openAuth();
-            else if (shouldOfferSetup()) openSetup(0);
-        }
+        // La fiecare deschidere arătăm autentificarea, mai puțin dacă a ales deja „doar mă uit” în sesiunea asta
+        let browsing = false;
+        try { browsing = sessionStorage.getItem(GUEST_SESSION_KEY) === "1"; } catch (_) { /* fără stocare */ }
+        if (first && !browsing) openAuth();
         return;
     }
 
     lsSet(SYNC_KEYS.choice, "account");
     closeAuth();
+    leaveGuest();
     renderAccount();
     await reconcileWithCloud();
     // Numele din contul Google devine numele elevului, dacă nu și-a scris deja altul.
@@ -6931,7 +6941,7 @@ const AUTH_ERRORS = {
 const SILENT_AUTH = new Set(["auth/popup-closed-by-user", "auth/cancelled-popup-request", "auth/user-cancelled"]);
 const authMessage = err => AUTH_ERRORS[err?.code] || "Nu a mers. Încearcă din nou peste câteva momente.";
 
-const authUI = { mode: "signin", busy: false, error: "", info: "", email: "", returnFocus: null };
+const authUI = { mode: "signin", busy: false, error: "", info: "", email: "", returnFocus: null, reason: "" };
 
 function openAuth(mode = "signin") {
     if (!cloud.api) return;
@@ -6950,6 +6960,7 @@ function openAuth(mode = "signin") {
 function closeAuth() {
     const box = $("auth");
     if (!box || box.hidden) return;
+    authUI.reason = "";
     box.hidden = true;
     if ($("action-modal").hidden && $("setup").hidden) document.body.classList.remove("modal-open");
     const back = authUI.returnFocus;
@@ -6964,7 +6975,7 @@ function renderAuth(focusId) {
         <div class="auth-intro">
             <svg class="brand-logo auth-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-logo"/></svg>
             <h2 id="auth-title" tabindex="-1">${titles[mode]}</h2>
-            <p>${mode === "reset" ? "Îți trimitem pe email un link pentru o parolă nouă." : "Notele tale, pe orice telefon sau calculator. Fără cont, rămân doar în acest browser."}</p>
+            <p>${mode === "reset" ? "Îți trimitem pe email un link pentru o parolă nouă." : authUI.reason ? escapeHTML(authUI.reason) : "Notele tale, pe orice telefon sau calculator. Fără cont poți doar să te uiți."}</p>
         </div>
         ${mode !== "reset" ? `
             <button type="button" class="btn auth-google" data-action="auth-google" ${busy ? "disabled" : ""}>
@@ -7002,8 +7013,8 @@ function renderAuth(focusId) {
             ${mode === "reset" ? `<button type="button" class="btn btn-text" data-action="auth-mode" data-mode="signin">${icon("undo")} Înapoi la autentificare</button>` : ""}
         </div>
         <div class="auth-foot">
-            <button type="button" class="btn btn-text" data-action="auth-local">Folosește fără cont</button>
-            <small>Poți intra în cont oricând, din Setări.</small>
+            <button type="button" class="btn btn-text" data-action="auth-local">${icon("eye")} Doar mă uit, ca vizitator</button>
+            <small>Ca vizitator poți răsfoi aplicația, dar nu poți adăuga sau schimba nimic.</small>
         </div>`;
     const target = focusId ? $(focusId) : (error ? ($("auth-pass") || $("auth-email")) : $("auth-email"));
     (target || $("auth-title"))?.focus({ preventScroll: true });
@@ -7135,7 +7146,13 @@ function confirmSignOut() {
             }
             setSyncMeta({ uid: null, lastSyncAt: 0, dirty: false });
             lsSet(SYNC_KEYS.choice, null);
-            if (wipe) applyRemoteData(null);
+            if (wipe) {
+                // vizitatorul nu poate schimba date, deci ștergerea se face înainte ca modul vizitator să le „înghețe”
+                const wasGuest = guest.on;
+                if (wasGuest) Object.assign(guest, { on: false, demo: false, base: null, fp: "" });
+                applyRemoteData(null);
+                if (wasGuest) enterGuest();
+            }
             showToast(wipe ? "Ai ieșit din cont. Datele de pe acest dispozitiv au fost șterse." : "Ai ieșit din cont.");
         }
     });
@@ -7196,10 +7213,7 @@ function openAccountPanel() {
 const ACCOUNT_ACTIONS = {
     "account-open": () => openAccountPanel(),
     "auth-open": () => openAuth(),
-    "auth-close": () => {
-        if (!lsGet(SYNC_KEYS.choice)) ACCOUNT_ACTIONS["auth-local"](); // închis fără alegere = folosește fără cont
-        else closeAuth();
-    },
+    "auth-close": () => ACCOUNT_ACTIONS["auth-local"](), // închis fără să intre = răsfoiește ca vizitator
     "auth-mode": el => {
         authUI.email = field("auth-email").trim() || authUI.email;
         Object.assign(authUI, { mode: ["signin", "signup", "reset"].includes(el.dataset.mode) ? el.dataset.mode : "signin", error: "", info: "" });
@@ -7215,9 +7229,8 @@ const ACCOUNT_ACTIONS = {
         el.setAttribute("aria-label", show ? "Ascunde parola" : "Arată parola");
     },
     "auth-local": () => {
-        lsSet(SYNC_KEYS.choice, "local");
+        try { sessionStorage.setItem(GUEST_SESSION_KEY, "1"); } catch (_) { /* fără stocare */ }
         closeAuth();
-        if (shouldOfferSetup()) openSetup(0);
     },
     "sync-now": async () => {
         await (cloud.needsReconcile ? reconcileWithCloud() : uploadNow());
@@ -7237,6 +7250,152 @@ function bindAuthEvents() {
     });
 }
 
+/* ==================== VIZITATOR (fără cont: doar te uiți) ==================== */
+/* Fără cont se poate răsfoi tot, dar nu se poate adăuga sau schimba nimic: orice încercare deschide
+   autentificarea. Cine n-are date pe acest dispozitiv vede un caiet de exemplu, ținut doar în memorie.
+   Nimic din modul vizitator nu se salvează. */
+const guest = { on: false, demo: false, base: null, fp: "", restoring: false };
+const GUEST_SESSION_KEY = "pro_guest_browse_v4"; // a ales „doar mă uit” în această sesiune: nu-i mai arătăm autentificarea la pornire
+
+/** Acțiunile care doar arată ceva (navigare, filtre, vederi). Restul cer cont. */
+const GUEST_OK = new Set([
+    "nav", "show-date", "cal-nav", "cal-today", "cal-view", "cal-goto",
+    "cat-select", "cat-step", "cat-group", "cat-back", "cat-filter", "cat-clear-filters", "open-subject", "cat-menu-glance",
+    "home-day", "home-risk", "stats-print", "stats-insights-more", "stats-period", "stats-jump", "alert-open",
+    "sim-scenario", "sim-toggle-all", "sim-pick-subject",
+    "cmdk", "cmdk-close", "quick-add-close", "notif-open", "notif-close", "more-open", "more-close", "more-run",
+    "modal-cancel", "none", "tour-start", "tour-next", "tour-back", "tour-skip", "buddy-poke",
+    "account-open", "auth-open", "auth-close", "auth-mode", "auth-google", "auth-eye", "auth-local", "guest-signin"
+]);
+const GUEST_OK_MORE = new Set(["sim", "settings", "account", "tour", "plan"]);
+
+/** Poate modifica? Fără conturi configurate (ex. teste locale) aplicația merge ca înainte. */
+const canEdit = () => !cloud.configured || Boolean(cloud.user);
+
+/** Când cineva fără cont încearcă să schimbe ceva: îi explicăm și îi deschidem autentificarea. */
+function requireAccount() {
+    if (canEdit()) return true;
+    if (!cloud.seenUser && cloud.api !== null) {
+        showToast("O clipă, verific dacă ești în cont…");
+        return false;
+    }
+    if (!cloud.api) {
+        showToast("⚠️ Fără internet nu poți intra în cont acum. Ca vizitator poți doar să te uiți.", { duration: 5000 });
+        return false;
+    }
+    authUI.reason = "Ca vizitator poți doar să te uiți. Intră în cont ca să adaugi note, teste și planuri.";
+    openAuth("signin");
+    return false;
+}
+
+/** Ce contează ca „modificare făcută de om” (fără ce calculează aplicația singură: istoric, realizări, alerte, sesiuni generate). */
+function guestFingerprint() {
+    const { report, ...settings } = state.settings;
+    return JSON.stringify([
+        state.subjects, state.calendar, state.timetable, state.purtare.grades, state.purtare.excludeFromGPA, settings,
+        state.plan.prefs, state.plan.items.filter(it => it.manual || it.done).map(it => [it.id, it.done, it.date]),
+        sim.scenarios
+    ]);
+}
+
+const guestSnapshot = () => JSON.parse(JSON.stringify(buildBackup().data));
+function guestRestore(snap) {
+    applyLoadedData(readStoredData(name => clone(snap[name] ?? null)));
+}
+
+/** Un caiet de exemplu, ca vizitatorul să vadă cum arată aplicația folosită. Datele sunt relative la azi. */
+function demoData() {
+    const today = getLocalDateKey();
+    const k = n => addDays(today, n);
+    const g = (val, type, n) => ({ val, type, date: k(n) });
+    const subjects = {
+        "Limba și literatura română": { ore: 4, target: 10, priority: true, grades: [g(9, "Teză", -27), g(10, "Ascultare", -15), g(9, "Test", -4)] },
+        "Matematică": { ore: 4, target: 10, priority: true, grades: [g(7, "Test", -25), g(4, "Test", -9), g(6, "Ascultare", -3)] },
+        "Limba engleză": { ore: 2, target: 10, grades: [g(10, "Test", -20), g(9, "Proiect", -6)] },
+        "Fizică": { ore: 2, target: 9, grades: [g(8, "Test", -18), g(9, "Ascultare", -2)] },
+        "Chimie": { ore: 2, target: 9, grades: [g(5, "Test", -16), g(6, "Ascultare", -5)] },
+        "Biologie": { ore: 1, target: 9, grades: [g(10, "Proiect", -12)] },
+        "Istorie": { ore: 2, target: 9, grades: [g(8, "Ascultare", -11), g(9, "Test", -1)] },
+        "Geografie": { ore: 1, target: 9, grades: [] },
+        "Informatică": { ore: 2, target: 10, grades: [g(10, "Proiect", -8)] },
+        "Educație fizică și sport": { ore: 2, target: 10, grades: [g(10, "Altele", -14)] }
+    };
+    const ev = (id, title, type, subject, extra = {}) => ({ id, title, type, subject, ...extra });
+    const calendar = {
+        [k(-3)]: [ev("demo-t1", "Test chimie", "Test", "Chimie")],
+        [k(1)]: [ev("demo-t2", "Test fizică – mișcarea", "Test", "Fizică", { time: "08:00" })],
+        [k(2)]: [ev("demo-h1", "Eseu despre „Moara cu noroc”", "Temă", "Limba și literatura română")],
+        [k(4)]: [ev("demo-e1", "Teză la matematică", "Examen", "Matematică", { time: "10:00" })],
+        [k(6)]: [ev("demo-p1", "Prezentare la engleză", "Prezentare", "Limba engleză")],
+        [k(9)]: [ev("demo-t3", "Test istorie", "Test", "Istorie")]
+    };
+    const timetable = {
+        1: ["Matematică", "Fizică", "Limba și literatura română", "Limba engleză", "Istorie"],
+        2: ["Chimie", "Biologie", "Matematică", "Informatică", "Educație fizică și sport"],
+        3: ["Limba și literatura română", "Geografie", "Fizică", "Informatică", "Matematică"],
+        4: ["Matematică", "Limba engleză", "Istorie", "Chimie", "Educație fizică și sport"],
+        5: ["Limba și literatura română", "Limba engleză", "Matematică", "Biologie"]
+    };
+    return { subjects, calendar, timetable, plan: { prefs: { setup: true, school: 60, weekend: 90, session: 30 } } };
+}
+
+function enterGuest() {
+    if (!cloud.configured || guest.on) return;
+    guest.on = true;
+    document.body.classList.add("is-guest");
+    if (!hasLocalData()) {
+        const demo = demoData();
+        applyLoadedData(readStoredData(name => clone(demo[name] ?? null)));
+        guest.demo = true;
+    }
+    guest.base = guestSnapshot();
+    guest.fp = guestFingerprint();
+    refresh();
+    renderGuestBar();
+}
+
+/** La intrarea în cont: caietul de exemplu dispare (nu ajunge niciodată în cont), datele reale revin. */
+function leaveGuest() {
+    if (!guest.on) return;
+    const wasDemo = guest.demo;
+    Object.assign(guest, { on: false, demo: false, base: null, fp: "" });
+    document.body.classList.remove("is-guest");
+    if (wasDemo) loadState();
+    try { sessionStorage.removeItem(GUEST_SESSION_KEY); } catch (_) { /* fără stocare */ }
+    refresh();
+    renderGuestBar();
+    if (ui.activeTab === "tab-setari") loadSettingsIntoUI();
+}
+
+/** Plasa de siguranță, la fiecare redesenare: o schimbare ajunsă cumva în date se anulează. */
+function guestGuard() {
+    if (!guest.on || guest.restoring || !guest.base) return false;
+    const fp = guestFingerprint();
+    if (fp === guest.fp) return false;
+    guest.restoring = true;
+    guestRestore(guest.base);
+    guest.restoring = false;
+    requireAccount();
+    return true;
+}
+
+function renderGuestBar() {
+    const bar = $("guest-bar");
+    if (!bar) return;
+    bar.hidden = !guest.on;
+    if (!guest.on) {
+        document.querySelectorAll("#tab-setari [data-guest-locked]").forEach(el => { el.disabled = false; el.removeAttribute("data-guest-locked"); });
+        return;
+    }
+    bar.innerHTML = `
+        <span class="guest-bar-text">${icon("eye")}<span><b>Ești vizitator.</b> ${guest.demo ? "Te uiți la un caiet de exemplu." : "Te uiți la notele de pe acest dispozitiv."} Ca să adaugi sau să schimbi ceva, intră în cont.</span></span>
+        <button type="button" class="btn btn-primary btn-sm" data-action="guest-signin">Intră în cont</button>`;
+    // Setările se văd, dar nu se pot schimba
+    document.querySelectorAll("#tab-setari input, #tab-setari select, #tab-setari textarea").forEach(el => {
+        if (!el.disabled) { el.disabled = true; el.setAttribute("data-guest-locked", ""); }
+    });
+}
+
 /* ==================== MODAL ==================== */
 const FOCUSABLE = "button:not([disabled]):not([hidden]), [href], input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
@@ -7244,7 +7403,8 @@ const FOCUSABLE = "button:not([disabled]):not([hidden]), [href], input:not([disa
  * Deschide fereastra de dialog.
  * `body` este HTML generat de aplicație (valorile utilizatorului sunt escapate de apelant).
  */
-function openModal({ title, body = "", onConfirm = null, confirmText = "Confirmă", danger = false, cancelText = "Anulează", layout = "dialog" }) {
+function openModal({ title, body = "", onConfirm = null, confirmText = "Confirmă", danger = false, cancelText = "Anulează", layout = "dialog", guestOk = false }) {
+    if (!guestOk && !canEdit()) { requireAccount(); return; } // formularele (adăugare, editare, ștergere) cer cont
     const overlay = $("action-modal");
     const confirmBtn = $("action-modal-confirm");
     const cancelBtn = $("action-modal-cancel");
@@ -8474,6 +8634,7 @@ function applyImportedData(loaded) {
 }
 
 async function importBackupFile(file) {
+    if (!requireAccount()) return;
     if (!file) return;
     if (file.size > BACKUP.maxBytes) {
         showToast("⚠️ Fișierul e prea mare pentru un backup (max. 5 MB).");
@@ -8845,6 +9006,7 @@ const QUICK_ADD_KEYS = { n: "grade", t: "test", h: "homework", e: "event", m: "s
 let quickAddReturn = null;
 
 function openQuickAdd(anchor) {
+    if (!requireAccount()) return;
     const box = $("quick-add");
     if (!box) return;
     if (!box.hidden) {
@@ -9906,10 +10068,12 @@ const ACTIONS = {
     "more-close": () => closeMoreMenu(),
     "more-run": el => {
         closeMoreMenu({ restoreFocus: false });
+        if (!canEdit() && !GUEST_OK_MORE.has(el.dataset.kind)) { requireAccount(); return; }
         MORE_ACTIONS[el.dataset.kind]?.();
     },
     "notif-close": () => closeNotifPanel(),
     "modal-cancel": () => closeActionModal(),
+    "guest-signin": () => { authUI.reason = ""; openAuth("signin"); },
     "none": () => {},
     ...ACCOUNT_ACTIONS,
     ...TOUR_ACTIONS,
@@ -9920,7 +10084,14 @@ const ACTIONS = {
 function bindEvents() {
     document.addEventListener("click", event => {
         const el = event.target.closest("[data-action]");
-        if (el) ACTIONS[el.dataset.action]?.(el, event);
+        if (!el) return;
+        // Fără cont: doar acțiunile care arată ceva; restul deschid autentificarea (și bifele nu se bifează)
+        if (!canEdit() && !GUEST_OK.has(el.dataset.action) && ACTIONS[el.dataset.action]) {
+            event.preventDefault();
+            requireAccount();
+            return;
+        }
+        ACTIONS[el.dataset.action]?.(el, event);
     });
     document.addEventListener("input", event => {
         if (event.target.id === "set-name" || event.target.id === "set-buddy") renderBuddyPreview();
@@ -9933,6 +10104,7 @@ function bindEvents() {
         const el = event.target;
         if (!el.closest?.("#tab-setari") || !el.matches("input, select") || el.type === "file") return;
         if (!(el.id in SETTINGS_FIELDS) && !el.closest("#set-modules") && el.id !== "set-module-preset") return;
+        if (!canEdit()) { loadSettingsIntoUI(); requireAccount(); return; }
         saveSettings({ quiet: true });
     });
 
