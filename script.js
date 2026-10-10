@@ -1430,7 +1430,7 @@ function pokeBuddy(btn, event) {
     btn.innerHTML = buddySVG(BUDDY_POKES[buddyPoke.n - 1]);
 
     // Apăsat ca un buton: se turtește pe loc, apoi revine (nu fuge în nicio direcție).
-    btn.classList.remove("is-hit");
+    btn.classList.remove("is-hit", "is-calm");
     void btn.offsetWidth; // repornește animația
     btn.classList.add("is-hit");
 
@@ -1438,7 +1438,11 @@ function pokeBuddy(btn, event) {
     clearTimeout(buddyPoke.timer);
     buddyPoke.timer = setTimeout(() => {
         buddyPoke.n = 0;
-        if (buddyPoke.rest && document.contains(btn)) btn.innerHTML = buddySVG(buddyPoke.rest.mood);
+        if (buddyPoke.rest && document.contains(btn)) {
+            btn.classList.remove("is-hit");
+            btn.classList.add("is-calm"); // revine fără să „apară” din nou
+            btn.innerHTML = buddySVG(buddyPoke.rest.mood);
+        }
     }, 5000);
 }
 

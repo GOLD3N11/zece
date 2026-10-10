@@ -3366,11 +3366,13 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
 }
 .buddy-poke:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
 .buddy-poke:hover .buddy { filter: drop-shadow(0 8px 14px rgba(36, 27, 68, 0.22)); }
-.buddy-poke.is-hit .buddy { animation: buddyHit 0.45s cubic-bezier(.3,1.5,.5,1) both; }
+.buddy-poke.is-hit .buddy { animation: buddyHit 0.35s cubic-bezier(.3,1.4,.5,1) both; }
+.buddy-poke.is-calm .buddy { animation: none; }
+.buddy-poke.is-calm .buddy[data-mood="happy"] { animation: buddyBob 3.2s ease-in-out infinite; }
+/* Un singur „clic”: apăsarea se vede cât ții mouse-ul jos (:active); la eliberare doar revine elastic. */
 @keyframes buddyHit {
-    0% { transform: scale(1); }
-    30% { transform: scale(0.84, 0.8); filter: brightness(0.94) drop-shadow(0 2px 3px rgba(36, 27, 68, 0.2)); }
-    65% { transform: scale(1.05, 1.06); }
+    0% { transform: scale(0.88, 0.84); filter: brightness(0.94); }
+    55% { transform: scale(1.04, 1.05); filter: none; }
     100% { transform: scale(1); }
 }
 /* cât ții apăsat, rămâne „apăsat” */
