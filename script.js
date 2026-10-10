@@ -172,7 +172,7 @@ function safeParseJSON(raw, fallback) {
 }
 
 function clampNumber(value, min, max, fallback) {
-    const parsed = parseFloat(value);
+    const parsed = parseFloat(String(value).replace(",", "."));
     return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
 }
 
@@ -2619,7 +2619,8 @@ function bindCatalogNav() {
     let start = null;
     pane.addEventListener("touchstart", event => {
         const t = event.touches[0];
-        start = event.touches.length === 1 && !event.target.closest(".cat-strip, input, select, textarea") ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
+        const edge = t.clientX < 24 || t.clientX > innerWidth - 24; // marginile sunt ale gestului „înapoi” din Safari
+        start = event.touches.length === 1 && !edge && !event.target.closest(".cat-strip, input, select, textarea") ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
     }, { passive: true });
     pane.addEventListener("touchend", event => {
         if (!start) return;
@@ -2630,6 +2631,56 @@ function bindCatalogNav() {
         start = null;
         if (quick && Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.6) stepCatalog(dx < 0 ? 1 : -1);
     }, { passive: true });
+}
+
+/* ---------- telefon (mai ales iPhone) ---------- */
+function bindPhoneHelpers() {
+    const root = document.documentElement;
+    // Safari pe iPhone aplică stilurile „:active” (apăsat) doar dacă pagina ascultă atingerile.
+    document.addEventListener("touchstart", () => {}, { passive: true });
+    // Tastatura: pe iPhone nu micșorează pagina, ci doar „fereastra vizibilă”. O urmărim, ca foile de jos
+    // (formularele) să stea deasupra tastaturii, iar bara de jos să se ascundă cât scrii.
+    const vv = window.visualViewport;
+    const typingEl = el => el?.matches?.("input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=button]), textarea, select, [contenteditable='true']");
+    // Tastatura e deschisă când fereastra vizibilă e mult mai scundă decât cea mai înaltă văzută la lățimea asta
+    // (merge și pe iPhone, unde pagina nu se micșorează, și pe Android, unde se micșorează).
+    let tallest = 0;
+    let tallestW = 0;
+    const sync = () => {
+        let kb = typingEl(document.activeElement) && matchMedia("(pointer: coarse)").matches;
+        if (vv) {
+            if (innerWidth !== tallestW) { tallestW = innerWidth; tallest = 0; }
+            tallest = Math.max(tallest, vv.height);
+            root.style.setProperty("--vvh", `${Math.round(vv.height)}px`);
+            root.style.setProperty("--vvtop", `${Math.round(vv.offsetTop)}px`);
+            kb = kb && vv.height < tallest - 120;
+        }
+        document.body.classList.toggle("kb-open", Boolean(kb));
+    };
+    if (vv) {
+        vv.addEventListener("resize", sync);
+        vv.addEventListener("scroll", sync);
+    }
+    sync();
+    document.addEventListener("focusin", event => {
+        if (!typingEl(event.target)) return;
+        sync();
+        // câmpul ales rămâne la vedere după ce urcă tastatura
+        const el = event.target;
+        setTimeout(() => {
+            sync();
+            if (document.activeElement === el && document.body.classList.contains("kb-open") && el.closest(".modal-card, .setup-card, .auth-card")) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 350);
+    });
+    document.addEventListener("focusout", () => setTimeout(sync, 60));
+    // Deschisă de pe ecranul principal: aceeași aplicație, fără bara browserului
+    const standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+    document.body.classList.toggle("is-standalone", standalone);
+    // Merge și fără internet (după prima deschidere)
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+        const reg = () => navigator.serviceWorker.register("sw.js").catch(() => {});
+        if (document.readyState === "complete") reg(); else addEventListener("load", reg);
+    }
 }
 
 function bindCatMenu() {
@@ -2665,7 +2716,41 @@ function bindCatMenu() {
         setTimeout(() => openCatMenu(mat, x, y, list.querySelector(`.cat-row[data-mat="${CSS.escape(mat)}"]`)), 0);
     });
     list.addEventListener("dblclick", open);
-    list.addEventListener("contextmenu", open);
+    // Apăsare lungă pe ecrane tactile. Safari pe iPhone nu trimite „contextmenu”, așa că o măsurăm noi;
+    // pe Android vine și „contextmenu” — îl ignorăm dacă meniul s-a deschis deja.
+    let press = null;
+    let pressedAt = 0;
+    const cancelPress = () => { if (press) clearTimeout(press.timer); press = null; };
+    list.addEventListener("touchstart", event => {
+        cancelPress();
+        const row = event.touches.length === 1 ? rowAt(event) : null;
+        if (!row) return;
+        const t = event.touches[0];
+        press = { x: t.clientX, y: t.clientY, fired: false };
+        press.timer = setTimeout(() => {
+            if (!press) return;
+            press.fired = true;
+            pressedAt = Date.now();
+            navigator.vibrate?.(12);
+            openCatMenu(row.dataset.mat, press.x + 4, press.y + 4, row);
+        }, 480);
+    }, { passive: true });
+    list.addEventListener("touchmove", event => {
+        if (!press || press.fired) return;
+        const t = event.touches[0];
+        if (Math.hypot(t.clientX - press.x, t.clientY - press.y) > 10) cancelPress();
+    }, { passive: true });
+    list.addEventListener("touchend", event => {
+        // după o apăsare lungă nu mai vrem și „clicul” care ar alege materia (și ar închide meniul)
+        if (press?.fired) event.preventDefault();
+        cancelPress();
+    });
+    list.addEventListener("touchcancel", cancelPress);
+    list.addEventListener("contextmenu", event => {
+        if (Date.now() - pressedAt < 1000) { event.preventDefault(); return; }
+        cancelPress();
+        open(event);
+    });
     list.addEventListener("keydown", event => {
         if (!((event.shiftKey && event.key === "F10") || event.key === "ContextMenu")) return;
         const row = event.target.closest(".cat-row");
@@ -2677,7 +2762,8 @@ function bindCatMenu() {
     document.addEventListener("mousedown", event => {
         if (!menu.hidden && !menu.contains(event.target)) closeCatMenu({ restoreFocus: false });
     });
-    window.addEventListener("resize", () => closeCatMenu({ restoreFocus: false }));
+    let lastW = innerWidth;
+    window.addEventListener("resize", () => { if (innerWidth !== lastW) { lastW = innerWidth; closeCatMenu({ restoreFocus: false }); } });
     window.addEventListener("scroll", () => { if (performance.now() - catMenu.openedAt > 400) closeCatMenu({ restoreFocus: false }); }, { passive: true });
     menu.addEventListener("keydown", event => {
         const items = [...menu.querySelectorAll("[role='menuitem']")];
@@ -7126,11 +7212,11 @@ function subjectFormHTML({ name = "", ore = 2, target = 10, priority = false, ex
         <div class="form-row">
             <div class="form-group">
                 <label for="subj-ore">Ore / săptămână</label>
-                <input type="number" id="subj-ore" class="glass-input" value="${escapeHTML(ore)}" min="0.5" max="100" step="0.5">
+                <input type="number" id="subj-ore" class="glass-input" value="${escapeHTML(ore)}" min="0.5" max="100" step="0.5" inputmode="decimal">
             </div>
             <div class="form-group">
                 <label for="subj-target">Ținta (media finală)</label>
-                <input type="number" id="subj-target" class="glass-input" value="${escapeHTML(target)}" min="1" max="10" step="0.5">
+                <input type="number" id="subj-target" class="glass-input" value="${escapeHTML(target)}" min="1" max="10" step="0.5" inputmode="decimal">
             </div>
         </div>
         ${withFlags ? `
@@ -8239,6 +8325,8 @@ function applyAppearanceSettings() {
 
     document.body.classList.toggle("dark-mode", dark);
     document.documentElement.classList.toggle("theme-dark", dark); // bare de derulare și controale native întunecate
+    // bara Safari și bara de stare a telefonului iau culoarea foii, chiar dacă tema din aplicație diferă de cea a telefonului
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = dark ? "#17132A" : "#FBF8F2"; m.removeAttribute("media"); });
     document.documentElement.style.setProperty("--accent-color", (ACCENTS[a.accent] || ACCENTS.violet)[dark ? "dark" : "light"]);
 
     document.body.classList.remove("layout-compact", "layout-spacious");
@@ -9628,6 +9716,7 @@ function init() {
     bindAuthEvents();
     bindCatMenu();
     bindCatalogNav();
+    bindPhoneHelpers();
     initBuddyLook();
     initCloud();
     // Cu conturi, configurarea vine după alegerea de pe ecranul de autentificare.

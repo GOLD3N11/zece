@@ -118,6 +118,7 @@ body {
     background-size: 24px 24px;
     color: var(--text-primary);
     min-height: 100vh;
+    min-height: 100dvh;
     padding: 0 var(--page-pad) 32px;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
@@ -3739,4 +3740,91 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
     .cal-col.is-past .cal-lessons { display: none; }
     .cal-col.is-past.is-empty, .cal-col.is-past:not(:has(.cal-items > *)) { padding-top: 8px; padding-bottom: 8px; }
     .cal-col.is-past .cal-add { display: none; }
+}
+
+/* ==================== TELEFON & IPHONE ==================== */
+/* Textul nu se mărește singur la rotire; atingerile răspund imediat (fără întârzierea de „dublu-tap pentru zoom”). */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+button, a, label, summary, select, [role="button"], [role="tab"], .cat-row { -webkit-tap-highlight-color: transparent; }
+/* Derularea dintr-o foaie sau dintr-un meniu nu mai trage după ea pagina de dedesubt */
+.modal-overlay, .modal-card, #action-modal-body, .cmdk-card, .quick-add-card, .setup-card, .auth-card, .cat-menu, .tour-card,
+.cat-strip, .cal-lessons { overscroll-behavior: contain; }
+
+/* Butoane care se simt apăsate pe ecran tactil (pe iPhone :active merge datorită unui ascultător de atingeri) */
+@media (hover: none) {
+    .btn:active, .mobile-nav-btn:active, .azi-icon-btn:active, .cat-row:active, .cat-chip:active, .cal-add-mini:active,
+    .qa-item:active, .cat-strip-chip:active, .grade-pick-btn:active { transform: scale(0.97); }
+    .mobile-add:active { transform: scale(0.92); }
+    .btn, .mobile-nav-btn, .mobile-add, .azi-icon-btn, .cat-chip, .cal-add-mini, .qa-item, .cat-strip-chip, .grade-pick-btn { transition-property: transform, background-color, color, border-color, opacity; transition-duration: 0.12s; }
+}
+
+@media (pointer: coarse) {
+    /* Sub 16px, Safari pe iPhone mărește pagina de fiecare dată când atingi un câmp. */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea { font-size: 16px !important; }
+    /* Ținte de atingere mai mari, fără să schimbe aspectul */
+    .btn-sm { min-height: 38px; }
+    .cat-chip, .azi-seg button { min-height: 36px; }
+    .azi-icon-btn { width: 38px; height: 38px; }
+    .cal-ev-check, .azi-check { position: relative; }
+    .cal-ev-check::after, .azi-check::after { content: ""; position: absolute; inset: -9px; }
+    .azi-inline-link, .brief-link { padding-block: 6px; margin-block: -6px; }
+    .cal-plan-item { min-height: 34px; }
+    /* Rândurile din catalog: apăsarea lungă deschide meniul nostru, nu meniul de text al telefonului */
+    .cat-row, .cat-strip-chip, .mobile-nav-btn, .mobile-add, .buddy, .grade-pick-btn { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+}
+
+/* Telefon: zona sigură (decupajul camerei, colțurile rotunjite, bara „home”), și pe orizontală */
+@media (max-width: 900px) {
+    :root {
+        --pad-l: max(var(--page-pad), env(safe-area-inset-left));
+        --pad-r: max(var(--page-pad), env(safe-area-inset-right));
+        --appbar-h: calc(61px + env(safe-area-inset-top));
+    }
+    body { padding-left: var(--pad-l); padding-right: var(--pad-r); }
+    .app-bar { margin-left: calc(-1 * var(--pad-l)); margin-right: calc(-1 * var(--pad-r)); padding: env(safe-area-inset-top) var(--pad-r) 0 var(--pad-l); }
+    .mobile-bottom-nav { padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); transition: transform 0.2s ease; }
+    .toast-container { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); }
+
+    /* Cât scrii, bara de jos se ascunde: tastatura are nevoie de loc, iar bara nu mai „plutește” peste câmpuri */
+    body.kb-open .mobile-bottom-nav { transform: translateY(calc(100% + 30px)); pointer-events: none; }
+    body.kb-open .toast-container { bottom: calc(12px + env(safe-area-inset-bottom)); }
+
+    /* Ecrane înguste (iPhone SE, Android mic): nimic nu iese în lateral */
+    .flex-center { flex-wrap: wrap; }
+    .cal-plan-item { max-width: 100%; min-width: 0; }
+}
+
+/* Foile de jos (formularele) urmăresc fereastra vizibilă: cu tastatura deschisă stau deasupra ei */
+@media (max-width: 600px) {
+    .modal-overlay { top: var(--vvtop, 0px); bottom: auto; height: var(--vvh, 100dvh); }
+    .modal-overlay .modal-card,
+    .modal-overlay.is-panel .modal-card { max-height: calc(var(--vvh, 100dvh) - max(16px, env(safe-area-inset-top))); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+    body.kb-open .modal-overlay .modal-footer { padding-bottom: 12px; }
+}
+
+/* Doar Safari pe iPhone/iPad: câmpurile de dată și oră arată ca restul câmpurilor */
+@supports (-webkit-touch-callout: none) {
+    input[type="date"].glass-input, input[type="time"].glass-input {
+        -webkit-appearance: none; appearance: none; display: block; min-height: 44px; min-width: 0; width: 100%; text-align: left;
+    }
+    input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+    .grade-date-row input[type="date"].glass-input { width: auto; flex: 1; }
+}
+
+/* Deschisă de pe ecranul principal: fără selectare accidentală de text în bare, ca într-o aplicație */
+body.is-standalone .app-bar, body.is-standalone .mobile-bottom-nav { -webkit-user-select: none; user-select: none; }
+
+/* Telefon pe orizontală: barele ocupă mai puțin din înălțimea mică */
+@media (max-height: 500px) and (orientation: landscape) {
+    .topbar { height: 50px; }
+    :root { --appbar-h: calc(53px + env(safe-area-inset-top)); }
+    .mobile-bottom-nav { padding-top: 2px; padding-bottom: max(2px, env(safe-area-inset-bottom)); }
+    .mobile-nav-btn { min-height: 38px; flex-direction: row; gap: 6px; }
+    .mobile-add { width: 46px; height: 46px; margin-top: -10px; }
+}
+
+/* iPhone mare pe orizontală (peste 900px lățime): meniul lateral nu intră sub decupajul camerei */
+@media (min-width: 901px) {
+    .sidebar { width: calc(var(--side-w) + env(safe-area-inset-left)); padding-left: calc(12px + env(safe-area-inset-left)); }
+    body { padding-left: calc(var(--side-w) + env(safe-area-inset-left) + var(--page-pad)); padding-right: max(var(--page-pad), env(safe-area-inset-right)); }
 }
