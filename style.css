@@ -3374,16 +3374,8 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
     100% { transform: translateX(0) scale(1, 1); }
 }
 .azi-buddy { position: relative; }
-.buddy-pow {
-    position: absolute; z-index: 2; pointer-events: none; transform: translate(-50%, -100%);
-    font-family: var(--font-hand); font-weight: 800; font-size: 18px; color: var(--brand-pink);
-    text-shadow: 0 1px 0 var(--sheet), 0 0 6px var(--sheet);
-    animation: buddyPow 0.7s ease-out both;
-}
-@keyframes buddyPow { 0% { opacity: 0; transform: translate(-50%, -60%) scale(0.6); } 25% { opacity: 1; transform: translate(-50%, -110%) scale(1.15) rotate(-6deg); } 100% { opacity: 0; transform: translate(-50%, -190%) scale(1) rotate(4deg); } }
 @media (prefers-reduced-motion: reduce) {
-    .buddy-eyes, .buddy-poke.is-hit .buddy, .buddy-pow { animation: none !important; }
-    .buddy-pow { display: none; }
+    .buddy-eyes, .buddy-poke.is-hit .buddy { animation: none !important; }
     .buddy-body, .buddy-pupils { transition: none; }
 }
 
@@ -3414,3 +3406,84 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
     .tour-card { padding: 14px 14px 12px; gap: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .tour-hole, .tour-card { transition: none; } }
+
+/* ==================== EXPRESIILE MASCOTEI ==================== */
+/* Fiecare stare are mișcarea ei: corpul (.buddy-anim), părțile feței și efectele din jur. */
+.buddy { overflow: visible; }
+.buddy-anim { transform-origin: 60px 104px; }
+.b-eyes-pop, .b-mouth, .b-brows, .b-squint, .b-x, .b-cheeks, .b-spark, .b-heart, .b-heart-eye, .b-spiral, .b-shock, .b-steam, .b-sweat {
+    transform-box: fill-box; transform-origin: center;
+}
+.b-orbit { transform-box: view-box; transform-origin: 60px 4px; }
+
+@media (prefers-reduced-motion: no-preference) {
+    /* bucuros: zâmbetul „respiră”, obrajii pulsează */
+    [data-mood="happy"] .b-mouth { animation: bSmile 3.2s ease-in-out infinite; }
+    [data-mood="happy"] .b-cheeks { animation: bBlush 3.2s ease-in-out infinite; }
+    /* concentrat: gura se mută într-o parte, ca atunci când te gândești */
+    [data-mood="focused"] .b-mouth { animation: bThink 2.6s ease-in-out infinite; }
+    /* îngrijorat: sprâncenele tremură, un strop de transpirație alunecă */
+    [data-mood="worried"] .b-brows { animation: bWorry 1.4s ease-in-out infinite; }
+    [data-mood="worried"] .b-sweat { animation: bSweat 2s ease-in infinite; }
+    /* râde: se zguduie de râs, ochii se strâng, gura se deschide și se închide, steluțe */
+    [data-mood="giggle"] .buddy-anim { animation: bGiggle 0.5s ease-in-out 3; }
+    [data-mood="giggle"] .b-mouth { animation: bLaugh 0.25s ease-in-out 6 alternate; }
+    [data-mood="giggle"] .b-squint { animation: bSquint 0.25s ease-in-out 6 alternate; }
+    [data-mood="giggle"] .b-spark { animation: bSpark 0.9s ease-out both; }
+    [data-mood="giggle"] g:nth-last-child(2) > .b-spark { animation-delay: 0.12s; }
+    [data-mood="giggle"] g:last-child > .b-spark { animation-delay: 0.24s; }
+    /* surprins: sare în sus, ochii se măresc, gura „O” pulsează, liniuțe de șoc */
+    [data-mood="surprised"] .buddy-anim { animation: bJump 0.5s cubic-bezier(.3,1.6,.5,1) both; }
+    [data-mood="surprised"] .b-eyes-pop { animation: bPop 0.45s cubic-bezier(.3,1.8,.5,1) both; }
+    [data-mood="surprised"] .b-brows { animation: bBrowUp 0.45s ease-out both; }
+    [data-mood="surprised"] .b-mouth { animation: bO 0.6s ease-in-out infinite alternate; }
+    [data-mood="surprised"] .b-shock { animation: bShock 0.7s ease-out both; }
+    /* „au!”: se clatină, ochii X se învârt puțin, steluțe în jurul capului */
+    [data-mood="ouch"] .buddy-anim { animation: bWobble 0.8s ease-out both; }
+    [data-mood="ouch"] .b-x { animation: bXspin 0.5s ease-in-out infinite alternate; }
+    [data-mood="ouch"] .b-orbit { animation: bOrbit 1.4s linear infinite; }
+    /* supărat: tremură, sprâncenele se încruntă, obrajii se înroșesc, iese abur */
+    [data-mood="angry"] .buddy-anim { animation: bTremble 0.12s linear infinite; }
+    [data-mood="angry"] .b-brows { animation: bFrown 0.6s ease-in-out infinite alternate; }
+    [data-mood="angry"] .b-cheeks { animation: bFlush 0.8s ease-in-out infinite alternate; }
+    [data-mood="angry"] .b-steam { animation: bSteam 1.1s ease-out infinite; }
+    [data-mood="angry"] .b-steam.is-late { animation-delay: 0.55s; }
+    /* amețit: ochii-spirală se rotesc, se legănă, steluțele se învârt încet */
+    [data-mood="dizzy"] .buddy-anim { animation: bSway 1.2s ease-in-out infinite; }
+    [data-mood="dizzy"] .b-spiral { animation: bSpin 1s linear infinite; }
+    [data-mood="dizzy"] .b-orbit { animation: bOrbit 2.4s linear infinite; }
+    /* face pace: ochi-inimioare care bat, inimioare care urcă */
+    [data-mood="love"] .buddy-anim { animation: bJump 0.5s cubic-bezier(.3,1.6,.5,1) both; }
+    [data-mood="love"] .b-heart-eye { animation: bBeat 0.7s ease-in-out infinite; }
+    [data-mood="love"] .b-heart { animation: bFloat 1.6s ease-out infinite; }
+    [data-mood="love"] .is-late .b-heart { animation-delay: 0.5s; }
+}
+
+@keyframes bSmile { 50% { transform: scale(1.12, 1.18); } }
+@keyframes bBlush { 50% { opacity: 0.55; transform: scale(1.15); } }
+@keyframes bThink { 0%, 100% { transform: translateX(0) rotate(0); } 30% { transform: translateX(-3px) rotate(-8deg); } 65% { transform: translateX(3px) rotate(6deg); } }
+@keyframes bWorry { 50% { transform: translateY(-1.5px) rotate(2deg); } }
+@keyframes bSweat { 0% { transform: translateY(-4px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(14px); opacity: 0; } }
+@keyframes bGiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-5deg) translateY(-2px); } 75% { transform: rotate(5deg) translateY(-2px); } }
+@keyframes bLaugh { from { transform: scaleY(1); } to { transform: scaleY(0.55); } }
+@keyframes bSquint { from { transform: translateY(0); } to { transform: translateY(-1.5px) scaleY(0.75); } }
+@keyframes bSpark { 0% { transform: scale(0) rotate(0); opacity: 0; } 40% { transform: scale(1.3) rotate(45deg); opacity: 1; } 100% { transform: scale(0.8) rotate(90deg); opacity: 0; } }
+@keyframes bJump { 0% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-12px) scale(0.92, 1.1); } 65% { transform: translateY(0) scale(1.08, 0.92); } 100% { transform: translateY(0) scale(1, 1); } }
+@keyframes bPop { 0% { transform: scale(0.7); } 60% { transform: scale(1.35); } 100% { transform: scale(1.15); } }
+@keyframes bBrowUp { 0% { transform: translateY(3px); } 100% { transform: translateY(-3px); } }
+@keyframes bO { from { transform: scale(0.85, 0.9); } to { transform: scale(1.1, 1.2); } }
+@keyframes bShock { 0% { opacity: 0; transform: scale(0.6); } 30% { opacity: 1; transform: scale(1.15); } 100% { opacity: 0; transform: scale(1.3); } }
+@keyframes bWobble { 0% { transform: rotate(0); } 15% { transform: rotate(-12deg); } 35% { transform: rotate(9deg); } 55% { transform: rotate(-6deg); } 75% { transform: rotate(3deg); } 100% { transform: rotate(0); } }
+@keyframes bXspin { from { transform: rotate(-12deg) scale(0.95); } to { transform: rotate(12deg) scale(1.05); } }
+@keyframes bOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes bTremble { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.2px); } 75% { transform: translateX(1.2px); } }
+@keyframes bFrown { from { transform: translateY(0); } to { transform: translateY(2px) scaleX(1.05); } }
+@keyframes bFlush { from { opacity: 0.7; } to { opacity: 1; transform: scale(1.25); } }
+@keyframes bSteam { 0% { transform: translateY(4px) scale(0.4); opacity: 0; } 30% { opacity: 0.95; } 100% { transform: translateY(-16px) scale(1.4); opacity: 0; } }
+@keyframes bSway { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes bSpin { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes bBeat { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.3); } 50% { transform: scale(1.05); } 70% { transform: scale(1.2); } }
+@keyframes bFloat { 0% { transform: translateY(6px) scale(0.5); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(-18px) scale(1.1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+    .b-shock, .b-steam, .b-sweat, .b-spark, .b-heart { display: none; }
+}

@@ -1316,35 +1316,52 @@ const formatAvg = v => Number(v).toFixed(2);
  * ca să poată urmări cursorul; celelalte stări (râde, „au!”) își desenează singure ochii.
  */
 const INK = "#2A1B5C";
-const EYES_OPEN = (r = 4.5) => `<g class="buddy-eyes">
+const EYES_OPEN = (r = 4.5) => `<g class="b-eyes-pop"><g class="buddy-eyes">
     <circle cx="44" cy="55" r="9.5" fill="#FFFFFF"/><circle cx="76" cy="55" r="9.5" fill="#FFFFFF"/>
     <g class="buddy-pupils"><circle cx="45" cy="56" r="${r}" fill="${INK}"/><circle cx="77" cy="56" r="${r}" fill="${INK}"/></g>
-</g>`;
-const bLine = (d, w = 3.6) => `<path d="${d}" stroke="${INK}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+</g></g>`;
+const bLine = (d, w = 3.6, cls = "") => `<path class="${cls}" d="${d}" stroke="${INK}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+const STAR = (x, y, s = 1, fill = "#FFFFFF") => `<g transform="translate(${x} ${y}) scale(${s})"><path class="b-spark" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6 Z" fill="${fill}" stroke="${INK}" stroke-width="0.8"/></g>`;
+const HEART = (x, y) => `<g transform="translate(${x} ${y})"><path class="b-heart" d="M0 4 C-7 -1 -4 -7 0 -3 C4 -7 7 -1 0 4 Z" fill="#FF5C8A"/></g>`;
+// Efecte în jurul mascotei (steluțe, abur, stropi…), animate din CSS după starea ei.
+const BUDDY_FX = {
+    giggle: STAR(18, 26, 0.9, "#FFE58A") + STAR(102, 20, 0.7, "#FFE58A") + STAR(106, 44, 0.5, "#FFFFFF"),
+    surprised: `<g class="b-shock">${bLine("M10 42 L2 37M9 52 L0 52M10 62 L2 67M110 42 L118 37M111 52 L120 52M110 62 L118 67", 2.6)}</g>`,
+    ouch: `<g class="b-orbit">${STAR(38, 6, 1, "#FFE58A")}${STAR(82, 6, 1, "#FFE58A")}${STAR(60, -2, 0.8, "#FFFFFF")}</g>`,
+    dizzy: `<g class="b-orbit is-slow">${STAR(38, 6, 0.95, "#FFE58A")}${STAR(82, 6, 0.95, "#FFE58A")}${STAR(60, -2, 0.75, "#FF9EC0")}</g>`,
+    angry: `<circle class="b-steam" cx="22" cy="8" r="5" fill="#FFFFFF" stroke="${INK}" stroke-width="0.8"/><circle class="b-steam is-late" cx="98" cy="6" r="5" fill="#FFFFFF" stroke="${INK}" stroke-width="0.8"/>`,
+    worried: `<path class="b-sweat" d="M95 30 Q90 38 95 41 Q100 38 95 30 Z" fill="#8FD3FF" stroke="${INK}" stroke-width="0.8"/>`,
+    love: HEART(20, 30) + `<g class="is-late">${HEART(100, 24)}</g>` + HEART(104, 52)
+};
+const SPIRAL = (cx, cy) => `<g transform="translate(${cx} ${cy})"><path class="b-spiral" d="M0 0 m0 -1.5 a1.5 1.5 0 1 1 -1.5 1.5 a3.5 3.5 0 1 1 3.5 3.5 a5.5 5.5 0 1 1 -5.5 -5.5 a7.5 7.5 0 1 1 7.5 7.5" stroke="${INK}" stroke-width="2.4" fill="none" stroke-linecap="round"/></g>`;
 const BUDDY_FACES = {
-    happy: { eyes: EYES_OPEN(), mouth: bLine("M50 72 Q60 84 70 72") },
-    focused: { eyes: EYES_OPEN(), mouth: bLine("M52 76 H68") },
-    worried: { eyes: EYES_OPEN(), brows: bLine("M36 41 L50 44M84 41 L70 44", 3), mouth: bLine("M50 81 Q60 70 70 81") },
-    giggle: { eyes: bLine("M36 57 Q44 48 52 57M68 57 Q76 48 84 57", 3.4), mouth: `<path d="M47 69 Q60 90 73 69 Z" fill="${INK}"/><path d="M53 79 Q60 85 67 79" fill="#FF7AA8"/>` },
-    surprised: { eyes: EYES_OPEN(3), brows: bLine("M36 39 Q44 34 51 38M69 38 Q76 34 84 39", 3), mouth: `<ellipse cx="60" cy="78" rx="5.5" ry="7" fill="${INK}"/>` },
-    ouch: { eyes: bLine("M38 50 L50 61M50 50 L38 61M70 50 L82 61M82 50 L70 61", 3.4), mouth: bLine("M47 79 q4.3 -5 8.6 0 t8.6 0 t8.6 0", 3.2) },
-    angry: { eyes: EYES_OPEN(4), brows: bLine("M35 42 L51 48M85 42 L69 48", 3.6), mouth: bLine("M50 80 Q60 73 70 80"), hot: true }
+    happy: { eyes: EYES_OPEN(), mouth: bLine("M50 72 Q60 84 70 72", 3.6, "b-mouth") },
+    focused: { eyes: EYES_OPEN(), mouth: bLine("M52 76 H68", 3.6, "b-mouth") },
+    worried: { eyes: EYES_OPEN(), brows: bLine("M36 41 L50 44M84 41 L70 44", 3, "b-brows"), mouth: bLine("M50 81 Q60 70 70 81", 3.6, "b-mouth") },
+    giggle: { eyes: bLine("M36 57 Q44 48 52 57M68 57 Q76 48 84 57", 3.4, "b-squint"), mouth: `<g class="b-mouth"><path d="M47 69 Q60 90 73 69 Z" fill="${INK}"/><path d="M53 79 Q60 85 67 79" fill="#FF7AA8"/></g>` },
+    surprised: { eyes: EYES_OPEN(3), brows: bLine("M36 39 Q44 34 51 38M69 38 Q76 34 84 39", 3, "b-brows"), mouth: `<ellipse class="b-mouth" cx="60" cy="78" rx="5.5" ry="7" fill="${INK}"/>` },
+    ouch: { eyes: bLine("M38 50 L50 61M50 50 L38 61", 3.4, "b-x") + bLine("M70 50 L82 61M82 50 L70 61", 3.4, "b-x"), mouth: bLine("M47 79 q4.3 -5 8.6 0 t8.6 0 t8.6 0", 3.2, "b-mouth") },
+    dizzy: { eyes: SPIRAL(44, 55) + SPIRAL(76, 55), mouth: bLine("M48 80 Q54 74 60 80 T72 80", 3.2, "b-mouth") },
+    angry: { eyes: EYES_OPEN(4), brows: bLine("M35 42 L51 48M85 42 L69 48", 3.6, "b-brows"), mouth: bLine("M50 80 Q60 73 70 80", 3.6, "b-mouth"), hot: true },
+    love: { eyes: HEART(44, 55).replace('class="b-heart"', 'class="b-heart-eye"').replace("translate(44 55)", "translate(44 55) scale(1.7)") + HEART(76, 55).replace('class="b-heart"', 'class="b-heart-eye"').replace("translate(76 55)", "translate(76 55) scale(1.7)"),
+        mouth: bLine("M48 71 Q60 86 72 71", 3.6, "b-mouth"), hot: true }
 };
 
 function buddySVG(mood = "happy", cls = "") {
     const f = BUDDY_FACES[mood] || BUDDY_FACES.happy;
     const cheek = f.hot ? "#FF5C7A" : "#FF7AA8";
     return `<svg class="buddy ${cls}" viewBox="0 0 120 120" aria-hidden="true" data-mood="${mood}">
-        <g class="buddy-body">
+        <g class="buddy-body"><g class="buddy-anim">
             <g transform="rotate(-6 60 62)">
                 <path d="M14 18H106V86L88 104H14Z" fill="#FFC93C"/>
                 <path d="M88 104V86H106Z" fill="#E0A21C"/>
                 <rect x="44" y="10" width="32" height="13" fill="#FF9EC0"/>
                 ${f.eyes}${f.brows || ""}
-                <ellipse cx="31" cy="70" rx="6.5" ry="3.8" fill="${cheek}" opacity="0.75"/><ellipse cx="89" cy="70" rx="6.5" ry="3.8" fill="${cheek}" opacity="0.75"/>
+                <g class="b-cheeks"><ellipse cx="31" cy="70" rx="6.5" ry="3.8" fill="${cheek}" opacity="0.75"/><ellipse cx="89" cy="70" rx="6.5" ry="3.8" fill="${cheek}" opacity="0.75"/></g>
                 ${f.mouth}
+                ${BUDDY_FX[mood] || ""}
             </g>
-        </g>
+        </g></g>
     </svg>`;
 }
 
@@ -1379,17 +1396,11 @@ function initBuddyLook() {
     document.addEventListener("pointerdown", track, { passive: true });
 }
 
-/* Clic pe mascotă: întâi râde (gâdilat), apoi se miră, apoi „au!”, apoi se supără… și până la urmă face pace. */
-const BUDDY_POKES = [
-    { mood: "giggle", say: () => "Hihi, mă gâdili!", pow: "hihi" },
-    { mood: "giggle", say: () => "Hahaha, gata, gata!", pow: "haha" },
-    { mood: "surprised", say: name => `Hei! Ce faci${name ? `, ${name}` : ""}?`, pow: "Pac!" },
-    { mood: "ouch", say: () => "Au! Ăsta a fost un pumn?!", pow: "Poc!" },
-    { mood: "angry", say: () => "Gata, m-am supărat pe tine.", pow: "Bum!" },
-    { mood: "angry", say: () => "Hmpf. Nu mai vorbesc cu tine.", pow: "Poc!" },
-    { mood: "ouch", say: () => "Văd steluțe… Facem pace?", pow: "Bum!" },
-    { mood: "happy", say: name => `Bine, pace${name ? `, ${name}` : ""}. Hai înapoi la note!`, pow: "pace" }
-];
+/*
+ * Clic pe mascotă: fără text, doar fața și corpul reacționează. La clicuri repetate:
+ * râde, se miră, „au!”, se supără (cu abur), amețește, apoi face pace (cu inimioare).
+ */
+const BUDDY_POKES = ["giggle", "giggle", "surprised", "ouch", "angry", "angry", "dizzy", "love"];
 const buddyPoke = { n: 0, last: 0, timer: 0, rest: null };
 
 function pokeBuddy(btn, event) {
@@ -1398,12 +1409,9 @@ function pokeBuddy(btn, event) {
     const now = Date.now();
     buddyPoke.n = now - buddyPoke.last < 4000 ? (buddyPoke.n % BUDDY_POKES.length) + 1 : 1;
     buddyPoke.last = now;
-    const r = BUDDY_POKES[buddyPoke.n - 1];
-    btn.innerHTML = buddySVG(r.mood);
-    const text = box.querySelector(".buddy-bubble span");
-    if (text) text.textContent = r.say(firstName());
+    btn.innerHTML = buddySVG(BUDDY_POKES[buddyPoke.n - 1]);
 
-    // Lovitura: se turtește și sare în partea opusă clicului; un „Poc!” apare unde ai dat clic.
+    // Lovitura: se turtește și sare în partea opusă clicului.
     const rect = btn.getBoundingClientRect();
     const fromLeft = (event?.clientX ?? rect.left) < rect.left + rect.width / 2;
     btn.style.setProperty("--kick", `${fromLeft ? 10 : -10}px`);
@@ -1411,23 +1419,12 @@ function pokeBuddy(btn, event) {
     btn.classList.remove("is-hit");
     void btn.offsetWidth; // repornește animația
     btn.classList.add("is-hit");
-    const pow = document.createElement("span");
-    pow.className = "buddy-pow";
-    pow.textContent = r.pow;
-    pow.setAttribute("aria-hidden", "true");
-    const boxRect = box.getBoundingClientRect();
-    const x = event?.clientX ? event.clientX - boxRect.left : rect.left - boxRect.left + rect.width / 2;
-    const y = event?.clientY ? event.clientY - boxRect.top : rect.top - boxRect.top + 10;
-    pow.style.left = `${x}px`;
-    pow.style.top = `${y}px`;
-    box.appendChild(pow);
-    setTimeout(() => pow.remove(), 700);
 
-    // După câteva secunde de liniște, revine la mesajul zilei.
+    // După câteva secunde de liniște, revine la fața de zi cu zi (mesajul rămâne neatins).
     clearTimeout(buddyPoke.timer);
     buddyPoke.timer = setTimeout(() => {
         buddyPoke.n = 0;
-        if (buddyPoke.rest && document.contains(box)) paintBuddy(box, buddyPoke.rest);
+        if (buddyPoke.rest && document.contains(btn)) btn.innerHTML = buddySVG(buddyPoke.rest.mood);
     }, 5000);
 }
 
