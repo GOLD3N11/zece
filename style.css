@@ -3828,3 +3828,102 @@ body.is-standalone .app-bar, body.is-standalone .mobile-bottom-nav { -webkit-use
     .sidebar { width: calc(var(--side-w) + env(safe-area-inset-left)); padding-left: calc(12px + env(safe-area-inset-left)); }
     body { padding-left: calc(var(--side-w) + env(safe-area-inset-left) + var(--page-pad)); padding-right: max(var(--page-pad), env(safe-area-inset-right)); }
 }
+
+/* ==================== INSULA (iPhone cu Dynamic Island) ==================== */
+/* Mereu neagră, ca insula telefonului; coboară de sub ea, centrată pe bara de sus. */
+.island {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 11px);
+    left: 50%;
+    z-index: 140;
+    transform: translateX(-50%);
+    color: #F4F1FB;
+    font-size: 13px;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.island[hidden] { display: none; }
+.island-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 36px; max-width: 104px; padding: 0 12px 0 6px;
+    background: #000; color: inherit; border: 0; border-radius: 18px;
+    box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.45);
+    font: inherit; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
+    animation: islandDrop 0.5s cubic-bezier(.2, 1.3, .35, 1);
+    transition: transform 0.18s cubic-bezier(.2, 1.3, .35, 1);
+}
+.island-pill:active { transform: scale(0.94); }
+.island-pill:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+.island-compact { display: inline-flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; overflow: hidden; }
+.island-compact span { overflow: hidden; text-overflow: ellipsis; }
+.island-compact .ico { width: 15px; height: 15px; flex: none; }
+.island-face { display: inline-grid; place-items: center; flex: none; width: 26px; height: 26px; }
+.island-face .buddy { width: 26px; height: 26px; filter: none; }
+.island-face.is-big, .island-face.is-big .buddy { width: 46px; height: 46px; }
+.island-ring { flex: none; }
+.island-ring-bg { fill: none; stroke: rgba(255, 255, 255, 0.18); stroke-width: 3; }
+.island-ring-fg { fill: none; stroke: #7CE3A3; stroke-width: 3; stroke-linecap: round; transition: stroke-dasharray 0.6s cubic-bezier(.2, .9, .3, 1); }
+/* note pe fundal negru: aceleași tonuri, mai luminoase */
+.island .tone-hi { color: #7CE3A3; }
+.island .tone-mid { color: #C3A6FF; }
+.island .tone-low { color: #FFD166; }
+.island .tone-fail { color: #FF8A8A; }
+
+/* Deschisă: se „umflă” din pastila mică, ca o activitate live */
+.island.is-open { width: min(372px, calc(100vw - 16px)); }
+.island-panel {
+    padding: 12px 14px 14px; background: #000; border-radius: 30px;
+    box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.55);
+    animation: islandGrow 0.48s cubic-bezier(.2, 1.15, .3, 1) both;
+}
+.island-panel > * { animation: islandFade 0.3s 0.12s ease both; }
+.island.is-closing .island-panel { animation: islandShrink 0.26s cubic-bezier(.5, 0, .7, .4) both; }
+.island.is-closing .island-panel > * { animation: none; opacity: 0; transition: opacity 0.1s; }
+.island-event, .island-head { display: flex; align-items: center; gap: 12px; }
+.island-ev-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.island-ev-text b { font-size: 15px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.island-ev-text small { font-size: 12.5px; color: rgba(244, 241, 251, 0.62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.island-big { flex: none; font-family: var(--font-hand); font-size: 38px; line-height: 1; font-weight: 800; padding-right: 4px; }
+.island-big-ring { position: relative; display: grid; place-items: center; flex: none; }
+.island-big-ring b { position: absolute; font-size: 11px; font-variant-numeric: tabular-nums; }
+.island-close {
+    display: grid; place-items: center; flex: none; width: 34px; height: 34px;
+    background: rgba(255, 255, 255, 0.12); color: inherit; border: 0; border-radius: 50%; cursor: pointer;
+}
+.island-close .ico { width: 16px; height: 16px; transform: rotate(-90deg); }
+.island-rows { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.island-row {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.07); color: inherit; border: 0; border-radius: 16px;
+    font: inherit; text-align: left; cursor: pointer;
+}
+.island-row:active { background: rgba(255, 255, 255, 0.14); }
+.island-row:focus-visible, .island-close:focus-visible { outline: 2px solid #C3A6FF; outline-offset: 1px; }
+.island-row > .ico { width: 18px; height: 18px; flex: none; opacity: 0.85; }
+.island-row span { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.island-row span b { font-size: 14px; font-weight: 700; }
+.island-row span small { font-size: 12px; color: rgba(244, 241, 251, 0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.island-row em { flex: none; font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 15px; }
+.island-row em.is-hot { color: #FF9F7A; }
+
+@keyframes islandDrop { from { transform: translateY(-14px) scale(0.6); opacity: 0; } }
+@keyframes islandGrow {
+    from { clip-path: inset(0 calc(50% - 52px) calc(100% - 36px) calc(50% - 52px) round 18px); }
+    to { clip-path: inset(0 0 0 0 round 30px); }
+}
+@keyframes islandShrink {
+    from { clip-path: inset(0 0 0 0 round 30px); }
+    to { clip-path: inset(0 calc(50% - 52px) calc(100% - 36px) calc(50% - 52px) round 18px); opacity: 0.6; }
+}
+@keyframes islandFade { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+
+/* Pe orizontală insula telefonului e într-o parte, iar pe ecrane mai mari nu are rost */
+@media (orientation: landscape), (min-width: 901px) { .island { display: none !important; } }
+/* Cu pastila în mijlocul barei, numele aplicației se strânge puțin ca să încapă */
+body.has-island .topbar-brand { min-width: 0; }
+@media (max-width: 400px) { body.has-island .topbar-brand .brand-word, body.has-island .topbar-brand b { font-size: 0.94em; } }
+@media print { .island { display: none !important; } }
+@media (prefers-reduced-motion: reduce) { .island-pill, .island-panel, .island-panel > * { animation: none !important; } }
+
+/* Comutatorul ascuns care dă vibrația scurtă pe iPhone */
+.island-haptic { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }

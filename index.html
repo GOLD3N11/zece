@@ -29,6 +29,8 @@
     <script type="module" src="cloud.js"></script>
 </head>
 <body>
+    <!-- Insula: doar pe iPhone-urile cu Dynamic Island (vezi INSULA în script.js) -->
+    <div id="island" class="island" hidden></div>
     <!-- Iconițe (linie simplă, 24×24, culoarea textului). Folosire: <svg class="ico"><use href="#i-nume"/></svg> -->
     <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
         <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
@@ -592,6 +594,13 @@
                                 <option value="pen">Pix — rapid, fără nicio întârziere</option>
                                 <option value="on">Cerc animat</option>
                                 <option value="chalk">Jucăuș — urmă de cretă și steluțe la clic</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="set-island-group" hidden>
+                            <label for="set-island">Insula urNotes</label>
+                            <select id="set-island" class="glass-select">
+                                <option value="on">Pornită — coboară din Dynamic Island</option>
+                                <option value="off">Oprită</option>
                             </select>
                         </div>
                         

@@ -57,7 +57,7 @@ const DEFAULT_SETTINGS = {
     goals: { primary: "gpa", targetGPA: 10, minGPA: 9 },
     calc: { method: "weighted", rounding: "2", riskThreshold: 8, riskDrop: 0.5 },
     targets: { tens: 20, evals: 30 },
-    appearance: { theme: "system", accent: "violet", density: "normal", cursor: "off" },
+    appearance: { theme: "system", accent: "violet", density: "normal", cursor: "off", island: "on" },
     // Modulele anului școlar (pentru purtare): [{ start, end }] × 5
     modules: presetModules(),
     // Raportul pentru printare: datele de pe antet, perioada și secțiunile alese ultima dată
@@ -780,7 +780,8 @@ function sanitizeSettings(raw) {
             theme: pick(s.appearance.theme, ["system", "light", "dark"], "system"),
             accent: pick(s.appearance.accent, Object.keys(ACCENTS), "violet"),
             density: pick(s.appearance.density, ["normal", "compact", "spacious"], "normal"),
-            cursor: pick(s.appearance.cursor, CURSOR_MODES, "off")
+            cursor: pick(s.appearance.cursor, CURSOR_MODES, "off"),
+            island: pick(s.appearance.island, ["on", "off"], "on")
         },
         modules: sanitizeModules(s.modules),
         report: {
@@ -1208,6 +1209,7 @@ function refresh() {
     renderNotificationBadge();
     if (!$("notif-panel")?.hidden) renderAlerts();
     renderActiveTab({ keepSettingsForm: true });
+    islandAfterRefresh();
 }
 
 /* ==================== RANDARE ==================== */
@@ -3087,6 +3089,7 @@ const SETTINGS_FIELDS = {
     "set-accent": ["appearance", "accent"],
     "set-density": ["appearance", "density"],
     "set-cursor": ["appearance", "cursor"],
+    "set-island": ["appearance", "island"],
     "set-name": ["profile", "name"],
     "set-buddy": ["profile", "buddy"]
 };
@@ -6024,6 +6027,213 @@ const PLAN_ACTIONS = {
     }
 };
 
+/* ==================== INSULA (doar pe iPhone-urile cu Dynamic Island) ==================== */
+/* O „activitate live” care coboară din insula telefonului: mic, arată fața mascotei și un singur lucru
+   (planul de azi, următorul test sau media); la o notă nouă sau la o sesiune bifată se deschide singură
+   o clipă, iar la atingere arată un mini-rezumat. Pe alte telefoane și pe calculator nu există. */
+
+/** Ecranele (în puncte, portret) ale iPhone-urilor cu Dynamic Island: 14 Pro/Pro Max, 15, 16, 17 și Air. */
+const ISLAND_SCREENS = new Set(["393x852", "430x932", "402x874", "440x956", "420x912"]);
+const island = { on: false, open: "", timer: null, snap: null, haptic: null };
+
+function detectDynamicIsland() {
+    if (/[?&]insula=1\b/.test(location.search)) return true; // previzualizare pe orice ecran
+    const ua = navigator.userAgent || "";
+    if (!/iPhone/.test(ua) || /iPad|Macintosh/.test(ua)) return false;
+    const w = Math.min(screen.width, screen.height);
+    const h = Math.max(screen.width, screen.height);
+    return ISLAND_SCREENS.has(`${w}x${h}`);
+}
+
+function islandEnabled() {
+    return island.supported && state.settings.appearance.island !== "off";
+}
+
+/** O vibrație scurtă pe iPhone (iOS 18+): Safari o dă când se apasă eticheta unui comutator. Doar în urma unei atingeri. */
+function islandHaptic() {
+    if (!island.haptic) {
+        const label = document.createElement("label");
+        label.className = "island-haptic";
+        label.setAttribute("aria-hidden", "true");
+        label.innerHTML = '<input type="checkbox" switch tabindex="-1">';
+        label.addEventListener("click", event => event.stopPropagation());
+        document.body.append(label);
+        island.haptic = label;
+    }
+    try { island.haptic.click(); } catch { /* fără vibrație, nicio problemă */ }
+}
+
+function islandData() {
+    const today = getLocalDateKey();
+    const links = gradeLinks();
+    const next = occurrencesBetween(today, addDays(today, 21))
+        .find(o => NEEDS_GRADE.has(o.ev.type) && !isOccurrenceDone(o.ev, o.date, links));
+    const plan = state.plan.prefs.setup ? state.plan.items.filter(it => it.date === today) : [];
+    const done = plan.filter(it => it.done).length;
+    return { today, next, plan, done, avg: metrics.totalGrades > 0 ? metrics.globalAvg : null };
+}
+
+function islandRing(done, total, size = 18) {
+    const r = (size - 3) / 2;
+    const c = 2 * Math.PI * r;
+    const part = total ? done / total : 0;
+    return `<svg class="island-ring" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
+        <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="island-ring-bg"/>
+        <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="island-ring-fg" stroke-dasharray="${(c * part).toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
+    </svg>`;
+}
+
+const islandDays = n => n === 0 ? "azi" : n === 1 ? "mâine" : `${n} zile`;
+
+/** Partea mică: fața mascotei + un singur lucru, cel mai util acum. */
+function islandCompact(d) {
+    if (d.plan.length && d.done < d.plan.length) {
+        return { mood: "focused", html: `${islandRing(d.done, d.plan.length)}<span>${d.done}/${d.plan.length}</span>`, label: `Planul de azi: ${d.done} din ${d.plan.length}` };
+    }
+    if (d.next && daysBetween(d.today, d.next.date) <= 3) {
+        const n = daysBetween(d.today, d.next.date);
+        return { mood: n <= 1 ? "worried" : "focused", html: `${icon("calendar")}<span>${islandDays(n)}</span>`, label: `${d.next.ev.title || d.next.ev.type}: ${islandDays(n)}` };
+    }
+    if (d.plan.length) return { mood: "love", html: `${icon("check")}<span>gata</span>`, label: "Planul de azi e gata" };
+    if (d.avg !== null) return { mood: d.avg >= 9 ? "happy" : "focused", html: `<span class="tone-${gradeTone(d.avg)}">${formatAvg(d.avg)}</span>`, label: `Media generală ${formatAvg(d.avg)}` };
+    return { mood: "happy", html: "<span>urNotes</span>", label: "urNotes" };
+}
+
+function renderIsland() {
+    const box = $("island");
+    if (!box) return;
+    if (!islandEnabled()) {
+        box.hidden = true;
+        document.body.classList.remove("has-island");
+        return;
+    }
+    document.body.classList.add("has-island");
+    box.hidden = false;
+    if (island.open) return; // conținutul deschis rămâne până se strânge
+    const c = islandCompact(islandData());
+    box.className = "island";
+    box.innerHTML = `
+        <button type="button" class="island-pill" aria-expanded="false" aria-label="${escapeHTML(`${c.label}. Atinge pentru rezumat`)}">
+            <span class="island-face" aria-hidden="true">${buddySVG(c.mood)}</span>
+            <span class="island-compact">${c.html}</span>
+        </button>`;
+}
+
+function collapseIsland() {
+    if (!island.open) return;
+    clearTimeout(island.timer);
+    island.open = "";
+    const box = $("island");
+    box.classList.add("is-closing");
+    box.classList.remove("is-open");
+    setTimeout(() => { box.classList.remove("is-closing"); renderIsland(); }, 260);
+}
+
+function openIsland(kind, html, { auto = 0 } = {}) {
+    const box = $("island");
+    if (!box || !islandEnabled() || document.body.classList.contains("modal-open") && kind === "summary") return;
+    clearTimeout(island.timer);
+    island.open = kind;
+    box.className = `island is-open is-${kind}`;
+    box.innerHTML = `<div class="island-panel" role="${kind === "summary" ? "dialog" : "status"}" aria-label="urNotes">${html}</div>`;
+    if (kind === "summary") box.querySelector("[data-island-go]")?.focus({ preventScroll: true });
+    if (auto) island.timer = setTimeout(collapseIsland, auto);
+}
+
+function islandEventHTML({ mood, title, sub, big, bigTone = "", ring = null }) {
+    return `
+        <div class="island-event">
+            <span class="island-face is-big" aria-hidden="true">${buddySVG(mood)}</span>
+            <span class="island-ev-text"><b>${escapeHTML(title)}</b>${sub ? `<small>${escapeHTML(sub)}</small>` : ""}</span>
+            ${ring ? `<span class="island-big-ring">${islandRing(ring[0], ring[1], 38)}<b>${ring[0]}/${ring[1]}</b></span>` : `<b class="island-big ${bigTone}">${escapeHTML(big)}</b>`}
+        </div>`;
+}
+
+function openIslandSummary() {
+    const d = islandData();
+    const name = firstName();
+    const n = d.next ? daysBetween(d.today, d.next.date) : null;
+    const left = d.plan.filter(it => !it.done).map(it => it.mat);
+    const rows = [
+        d.next && `<button type="button" class="island-row" data-island-go="calendar" data-date="${d.next.date}">
+            ${icon("calendar")}<span><b>${escapeHTML(d.next.ev.title || d.next.ev.type)}</b><small>${escapeHTML(capitalize(eventPhrase(d.next.ev.type, d.next.date, d.today)))}${d.next.ev.subject ? ` · ${escapeHTML(d.next.ev.subject)}` : ""}</small></span>
+            <em class="${n <= 1 ? "is-hot" : ""}">${islandDays(n)}</em></button>`,
+        state.plan.prefs.setup && `<button type="button" class="island-row" data-island-go="tab-plan">
+            ${islandRing(d.done, d.plan.length || 1, 18)}<span><b>Planul de azi</b><small>${d.plan.length ? (left.length ? `Mai ai: ${escapeHTML(left.join(", "))}` : "Gata pe azi!") : "Nimic programat azi"}</small></span>
+            <em>${d.done}/${d.plan.length}</em></button>`,
+        `<button type="button" class="island-row" data-island-go="tab-statistici">
+            ${icon("chart")}<span><b>Media generală</b><small>${metrics.riskCount ? `${plural(metrics.riskCount, "materie", "materii")} la risc` : "nicio materie la risc"}</small></span>
+            <em class="${d.avg !== null ? `tone-${gradeTone(d.avg)}` : ""}">${d.avg !== null ? formatAvg(d.avg) : "–"}</em></button>`
+    ].filter(Boolean).join("");
+    openIsland("summary", `
+        <div class="island-head">
+            <span class="island-face is-big" aria-hidden="true">${buddySVG("happy")}</span>
+            <span class="island-ev-text"><b>${escapeHTML(name ? `Salut, ${name}!` : "Salut!")}</b><small>${escapeHTML(buddyName())} îți ține evidența</small></span>
+            <button type="button" class="island-close" data-island-close aria-label="Strânge">${icon("chevron", "is-up")}</button>
+        </div>
+        <div class="island-rows">${rows}</div>`);
+}
+
+/** Apelat la fiecare redesenare: observă o notă nouă sau o sesiune bifată și deschide insula o clipă. */
+function islandAfterRefresh() {
+    if (!island.supported) return;
+    const counts = Object.fromEntries(Object.entries(state.subjects).map(([m, s]) => [m, s.grades.length]));
+    const today = getLocalDateKey();
+    const plan = state.plan.prefs.setup ? state.plan.items.filter(it => it.date === today) : [];
+    const snap = { counts, total: metrics.totalGrades, avg: metrics.globalAvg, done: plan.filter(it => it.done).length, len: plan.length };
+    const prev = island.snap;
+    island.snap = snap;
+    renderIsland();
+    if (!prev || !islandEnabled()) return;
+    const grew = Object.keys(counts).filter(m => counts[m] === (prev.counts[m] ?? 0) + 1);
+    const same = Object.keys(counts).every(m => grew.includes(m) || counts[m] === prev.counts[m]);
+    if (grew.length === 1 && same && grew[0] in prev.counts) {
+        const mat = grew[0];
+        const g = state.subjects[mat].grades.at(-1);
+        const val = Number(g.val);
+        const mood = val >= 9 ? "love" : val >= 7 ? "happy" : val >= 5 ? "surprised" : "worried";
+        const sub = prev.total ? `Media ${formatAvg(prev.avg)} → ${formatAvg(snap.avg)}` : `Prima notă! Media ${formatAvg(snap.avg)}`;
+        openIsland("event", islandEventHTML({ mood, title: `Notă nouă · ${mat}`, sub, big: String(val), bigTone: `tone-${gradeTone(val)}` }), { auto: 4200 });
+        islandHaptic();
+    } else if (snap.len && snap.len === prev.len && snap.done === prev.done + 1) {
+        const all = snap.done === snap.len;
+        const left = plan.filter(it => !it.done).map(it => it.mat);
+        openIsland("event", islandEventHTML({
+            mood: all ? "love" : "giggle",
+            title: all ? "Planul de azi e gata!" : "Sesiune bifată",
+            sub: all ? "Bravo, ai terminat tot ce era azi" : `Mai ai: ${left.join(", ")}`,
+            ring: [snap.done, snap.len]
+        }), { auto: 3600 });
+        islandHaptic();
+    }
+}
+
+function bindIsland() {
+    island.supported = detectDynamicIsland();
+    const box = $("island");
+    if (!island.supported || !box) return;
+    $("set-island-group")?.removeAttribute("hidden");
+    box.addEventListener("click", event => {
+        if (event.target.closest(".island-pill")) { islandHaptic(); openIslandSummary(); return; }
+        if (event.target.closest("[data-island-close]")) { collapseIsland(); box.querySelector(".island-pill")?.focus(); return; }
+        const go = event.target.closest("[data-island-go]");
+        if (go) {
+            collapseIsland();
+            if (go.dataset.islandGo === "calendar") showDateInCalendar(go.dataset.date);
+            else switchTab(go.dataset.islandGo);
+            return;
+        }
+        if (island.open === "event") collapseIsland(); // o atingere pe notificare o strânge
+    });
+    const outside = event => { if (island.open && !box.contains(event.target)) collapseIsland(); };
+    document.addEventListener("touchstart", outside, { passive: true });
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("keydown", event => { if (event.key === "Escape" && island.open === "summary") { collapseIsland(); box.querySelector(".island-pill")?.focus(); } });
+    let y = scrollY;
+    addEventListener("scroll", () => { if (Math.abs(scrollY - y) > 60) { y = scrollY; if (island.open === "summary") collapseIsland(); } }, { passive: true });
+    islandAfterRefresh();
+}
+
 /* ==================== TUR GHIDAT (pentru cei noi) ==================== */
 /*
  * Mascota îl plimbă pe elev prin aplicație: un „reflector” peste fiecare zonă importantă
@@ -7965,6 +8175,7 @@ function saveSettings({ quiet = false } = {}) {
     s.appearance.accent = ACCENTS[field("set-accent")] ? field("set-accent") : "violet";
     s.appearance.density = field("set-density") || "normal";
     s.appearance.cursor = CURSOR_MODES.includes(field("set-cursor")) ? field("set-cursor") : "off";
+    s.appearance.island = field("set-island") === "off" ? "off" : "on";
     s.profile.name = cleanName(field("set-name"), 40);
     s.profile.buddy = cleanName(field("set-buddy"), 20) || DEFAULT_SETTINGS.profile.buddy;
 
@@ -8332,6 +8543,7 @@ function applyAppearanceSettings() {
     document.body.classList.remove("layout-compact", "layout-spacious");
     if (a.density === "compact" || a.density === "spacious") document.body.classList.add(`layout-${a.density}`);
     applyCursorSetting();
+    if (island.supported) renderIsland();
 }
 
 /* ==================== NAVIGARE ==================== */
@@ -9717,6 +9929,7 @@ function init() {
     bindCatMenu();
     bindCatalogNav();
     bindPhoneHelpers();
+    bindIsland();
     initBuddyLook();
     initCloud();
     // Cu conturi, configurarea vine după alegerea de pe ecranul de autentificare.
