@@ -5118,7 +5118,9 @@ function finishSetup(withTimetable) {
  *   – o temă: o sesiune în ziua dinainte;
  *   – o materie la risc: 2 sesiuni pe săptămână, de preferință în ajunul orei ei (din orar);
  *   – o materie sub țintă: o sesiune (două dacă e marcată prioritară);
- *   – timpul rămas: încă o recapitulare pentru materiile care au nevoie, fără să treacă de minutele zilei.
+ *   – timpul rămas: încă o recapitulare pentru materiile care au nevoie, fără să treacă de minutele zilei;
+ *   – preferințele elevului: materiile „îmi place” primesc o sesiune în plus (chiar și la țintă),
+ *     iar cele „doar la teste” apar în plan numai înaintea testelor (fără teme, risc sau recapitulări).
  * Planul se reface singur când se schimbă ceva (un test nou, o notă). Sesiunile bifate sau mutate de elev rămân.
  * Totul e determinist (id-uri din cerere + zi), ca două dispozitive să ajungă la același plan, fără conflicte la sincronizare.
  */
@@ -5136,7 +5138,7 @@ const PLAN_SESSIONS = [15, 20, 25, 30, 45, 60];
 const EV_ARTICLE = { Test: "testul", Examen: "examenul", Proiect: "proiectul", Prezentare: "prezentarea", "Temă": "tema" };
 
 function defaultPlan() {
-    return { prefs: { school: 45, weekend: 60, session: 30, rest: -1, calendar: true, setup: false }, items: [], removed: {}, sig: "" };
+    return { prefs: { school: 45, weekend: 60, session: 30, rest: -1, calendar: true, setup: false, subjects: {} }, items: [], removed: {}, sig: "" };
 }
 
 function sanitizePlan(raw) {
@@ -5149,7 +5151,10 @@ function sanitizePlan(raw) {
         session: PLAN_SESSIONS.includes(Number(pr.session)) ? Number(pr.session) : 30,
         rest: Number.isInteger(Number(pr.rest)) && Number(pr.rest) >= -1 && Number(pr.rest) <= 6 ? Number(pr.rest) : -1,
         calendar: pr.calendar !== false,
-        setup: pr.setup === true
+        setup: pr.setup === true,
+        // Preferințele pe materii: „fav” = îmi place (mai mult timp), „tests” = doar înaintea testelor; restul = normal
+        subjects: Object.fromEntries(Object.entries(isPlainObject(pr.subjects) ? pr.subjects : {})
+            .filter(([mat, v]) => typeof mat === "string" && mat.trim() && mat !== "__proto__" && mat.length <= 60 && (v === "fav" || v === "tests")).slice(0, 80))
     };
     const today = getLocalDateKey();
     const cutoff = addDays(today, -PLAN_KEEP_DAYS);
@@ -5170,6 +5175,7 @@ function sanitizePlan(raw) {
     return plan;
 }
 
+const subjectPref = mat => state.plan.prefs.subjects[mat] || "normal";
 const planDays = (today = getLocalDateKey()) => Array.from({ length: PLAN_DAYS }, (_, i) => addDays(today, i));
 
 /** Câte minute are elevul într-o zi: ziua liberă = 0; în vacanță și în weekend, timpul de weekend. */
@@ -5226,9 +5232,9 @@ function planDemands(today) {
         if (D >= 2) push({ ...base, id: `t|${o.key}|practice`, kind: "practice", min: S, prio: 101 - D, candidates: [at(2), at(3), at(1)], why });
         push({ ...base, id: `t|${o.key}|review`, kind: "review", min: D === 1 ? S : half, prio: 102 - D, candidates: [at(1), at(2)], why });
     });
-    // 2. Temele
+    // 2. Temele (nu și la materiile „doar la teste”)
     occurrencesBetween(addDays(today, 1), addDays(today, PLAN_DAYS)).forEach(o => {
-        if (o.ev.type !== "Temă" || !state.subjects[o.ev.subject] || isOccurrenceDone(o.ev, o.date, links)) return;
+        if (o.ev.type !== "Temă" || !state.subjects[o.ev.subject] || subjectPref(o.ev.subject) === "tests" || isOccurrenceDone(o.ev, o.date, links)) return;
         const D = daysBetween(today, o.date);
         push({ id: `h|${o.key}`, mat: o.ev.subject, kind: "homework", min: S, prio: 95 - D, test: true,
             candidates: [addDays(o.date, -1), addDays(o.date, -2)], why: from => eventPhrase("Temă", o.date, from) });
@@ -5240,11 +5246,15 @@ function planDemands(today) {
     const orderFor = mat => [...new Set([...classEves(mat), ...spread])];
     const need = [];
     statsEntries().forEach(e => {
+        const pref = subjectPref(e.mat);
+        if (pref === "tests") return; // elevul vrea să o învețe doar înaintea testelor
         if (e.standing.key === "risk") {
             const p = planForCondition(e.mat, d => d.exactAvg >= risk);
             need.push({ e, prio: 80 + Math.min(8, (risk - e.d.rawAvg) * 2), count: 2, why: () => `ca să ieși din risc (${p.next ? `${planPill(p).text} la următoarea notă` : `îți trebuie ${planPill(p).text}`})` });
         } else if (e.standing.key === "below") {
-            need.push({ e, prio: 60 + Math.min(8, Math.max(0, targetGap(e)) * 4) + (e.sub.priority ? 8 : 0), count: e.sub.priority ? 2 : 1, why: () => `ca să ajungi la ținta de ${fmtTarget(e.sub.target)}` });
+            need.push({ e, prio: 60 + Math.min(8, Math.max(0, targetGap(e)) * 4) + (e.sub.priority || pref === "fav" ? 8 : 0), count: e.sub.priority || pref === "fav" ? 2 : 1, why: () => `ca să ajungi la ținta de ${fmtTarget(e.sub.target)}` });
+        } else if (pref === "fav") {
+            need.push({ e, prio: 66, count: 1, why: () => "pentru că îți place" });
         }
     });
     need.sort((a, b) => b.prio - a.prio).forEach(n => {
@@ -5332,7 +5342,7 @@ function planGoals() {
         .map(e => {
             const isRisk = e.standing.key === "risk";
             const plan = planForCondition(e.mat, isRisk ? d => d.exactAvg >= risk : d => reachesTarget(d, e.sub.target));
-            return { mat: e.mat, avg: e.d.exactAvg, risk: isRisk, goal: isRisk ? `ieși din risc (${risk.toFixed(2)})` : `ajungi la ${fmtTarget(e.sub.target)}`, pill: planPill(plan), plan, test: nextTest(e.mat) };
+            return { mat: e.mat, avg: e.d.exactAvg, risk: isRisk, goal: isRisk ? `ieși din risc (${risk.toFixed(2)})` : `ajungi la ${fmtTarget(e.sub.target)}`, pill: planPill(plan), plan, test: nextTest(e.mat), testsOnly: subjectPref(e.mat) === "tests" };
         });
     Object.entries(state.subjects).forEach(([mat, sub]) => {
         const test = !sub.grades.length && nextTest(mat);
@@ -5353,7 +5363,7 @@ function planItemHTML(it, { compact = false } = {}) {
                 <span class="plan-box" aria-hidden="true">${icon("check")}</span>
             </label>
             <span class="plan-main">
-                <b>${escapeHTML(it.mat)}</b>
+                <b>${escapeHTML(it.mat)}${subjectPref(it.mat) === "fav" ? ` <span class="plan-fav-star" title="Îți place">${icon("star")}</span>` : ""}</b>
                 <small><span class="plan-kind">${icon(k.icon)} ${k.label}</span> · ${it.min} min${it.reason ? ` · ${escapeHTML(it.reason)}` : ""}</small>
             </span>
             ${compact ? "" : `
@@ -5397,7 +5407,32 @@ function planPrefsHTML(prefix = "plan") {
                 </select>
             </div>
             <label class="check-row plan-cal-row"><input type="checkbox" id="${prefix}-calendar" ${p.calendar ? "checked" : ""}> Arată sesiunile și în Calendar</label>
-        </div>`;
+        </div>
+        ${planSubjectPrefsHTML(prefix)}`;
+}
+
+const PLAN_PREFS = [
+    { v: "fav", label: "Îmi place", hint: "mai mult timp" },
+    { v: "normal", label: "Normal", hint: "" },
+    { v: "tests", label: "Doar la teste", hint: "" }
+];
+
+/** Ce materii îi plac elevului și pe care vrea să le învețe doar înaintea testelor. */
+function planSubjectPrefsHTML(prefix) {
+    const mats = Object.keys(state.subjects);
+    if (!mats.length) return "";
+    return `
+        <fieldset class="plan-favs" id="${prefix}-favs">
+            <legend>Ce materii îți plac?</legend>
+            <p class="subtitle">„Îmi place” primește mai mult timp. „Doar la teste” apare în plan numai înaintea testelor.</p>
+            ${mats.map((mat, i) => `
+                <div class="plan-fav-row" role="radiogroup" aria-label="${escapeHTML(mat)}" data-mat="${escapeHTML(mat)}">
+                    <span class="plan-fav-name">${escapeHTML(mat)}</span>
+                    <span class="azi-seg plan-fav-seg">
+                        ${PLAN_PREFS.map(o => `<label class="plan-fav-opt"><input type="radio" name="${prefix}-fav-${i}" value="${o.v}" ${subjectPref(mat) === o.v ? "checked" : ""}><span>${o.v === "fav" ? `${icon("star")} ` : ""}${o.label}</span></label>`).join("")}
+                    </span>
+                </div>`).join("")}
+        </fieldset>`;
 }
 
 function readPlanPrefs(prefix = "plan") {
@@ -5408,6 +5443,12 @@ function readPlanPrefs(prefix = "plan") {
     const rest = Number(field(`${prefix}-rest`));
     p.rest = Number.isInteger(rest) && rest >= -1 && rest <= 6 ? rest : -1;
     p.calendar = Boolean($(`${prefix}-calendar`)?.checked);
+    const subjects = {};
+    document.querySelectorAll(`#${prefix}-favs .plan-fav-row`).forEach(row => {
+        const v = row.querySelector("input:checked")?.value;
+        if ((v === "fav" || v === "tests") && state.subjects[row.dataset.mat]) subjects[row.dataset.mat] = v;
+    });
+    p.subjects = subjects;
     p.setup = true;
 }
 
@@ -5476,7 +5517,7 @@ function renderPlan() {
                             <span class="azi-watch-main"><b>${escapeHTML(g.mat)}</b>
                                 <small>${g.first
                                     ? `Prima notă: ${escapeHTML(eventPhrase(g.test.type, g.test.date, today))}.`
-                                    : `Ca să ${escapeHTML(g.goal)}: ${g.plan.next ? `<span class="azi-need is-${g.pill.tone}">${escapeHTML(g.pill.text)}</span> la următoarea notă` : `<span class="azi-need is-${g.pill.tone}">${escapeHTML(g.pill.text)}</span>`}${g.test ? ` (${escapeHTML(eventPhrase(g.test.type, g.test.date, today))})` : ""}.`}</small>
+                                    : `Ca să ${escapeHTML(g.goal)}: ${g.plan.next ? `<span class="azi-need is-${g.pill.tone}">${escapeHTML(g.pill.text)}</span> la următoarea notă` : `<span class="azi-need is-${g.pill.tone}">${escapeHTML(g.pill.text)}</span>`}${g.test ? ` (${escapeHTML(eventPhrase(g.test.type, g.test.date, today))})` : ""}.${g.testsOnly ? ` <span class="plan-goal-note">Planific doar înaintea testelor.</span>` : ""}`}</small>
                             </span>
                             ${g.first ? "" : `<span class="azi-lesson-avg tone-${gradeTone(g.avg)}">${g.avg.toFixed(2)}</span>`}
                         </button></li>`).join("")}</ul>`
@@ -5590,7 +5631,7 @@ function openPlanAdd() {
 
 function openPlanPrefs() {
     openModal({
-        title: "Timpul meu de învățat",
+        title: "Timpul și materiile tale",
         confirmText: "Salvează și refă planul",
         body: planPrefsHTML("planm"),
         onConfirm: () => {
