@@ -1601,7 +1601,7 @@ const HELP = {
     need: { title: "Ce îți trebuie", text: "Ce notă îți trebuie la următoarea evaluare ca să ajungi (sau să rămâi) la țintă. Dacă nu se poate dintr-o singură notă, îți spun câte note de un anumit fel îți trebuie." },
     sim: { title: "Simulatorul", text: "Aici încerci note „ce-ar fi dacă”: adaugi note imaginare și vezi cum s-ar schimba mediile. Notele tale reale nu se schimbă." },
     plan: { title: "Planul", text: "Îți împart timpul de învățat pe 7 zile: înainte de teste, pentru teme și pentru materiile care au nevoie. Apeși „Începe”, înveți cât arată cronometrul, iar sesiunea se bifează singură." },
-    programme: { title: "Programa", text: "Materiile tale vin din planul-cadru al profilului și clasei tale, plus dirigenția și un opțional (căruia îi scrii tu tema). Alte materii nu se pot adăuga, ca să nu se strice mediile." }
+    programme: { title: "Programa", text: "Materiile tale vin din planul-cadru al profilului și clasei tale, plus dirigenția și maximum un opțional (căruia îi scrii tu tema). Alte materii nu se pot adăuga, ca să nu se strice mediile." }
 };
 const helpDot = key => `<button type="button" class="help-dot" data-action="help" data-key="${key}" aria-label="${escapeHTML(`Ce înseamnă: ${HELP[key].title}?`)}" title="Ce înseamnă?">?</button>`;
 function openHelp(key) {
@@ -3265,7 +3265,7 @@ function renderProgrammeSettings() {
     const outside = Object.keys(state.subjects).filter(m => !inProgramme(m));
     box.innerHTML = myProgramme() ? `
         <p class="programme-now"><b>${escapeHTML(programmeLabel())}</b><small>Limba modernă 2: ${escapeHTML(state.settings.school.lm2)}</small></p>
-        <p class="subtitle">Poți adăuga doar materiile din programa asta, plus dirigenția și un opțional.${outside.length ? ` ${plural(outside.length, "materie e", "materii sunt")} în afara programei: ${escapeHTML(outside.join(", "))}.` : ""}</p>
+        <p class="subtitle">Poți adăuga doar materiile din programa asta, plus dirigenția și maximum un opțional.${outside.length ? ` ${plural(outside.length, "materie e", "materii sunt")} în afara programei: ${escapeHTML(outside.join(", "))}.` : ""}</p>
         <button type="button" class="btn btn-glass btn-sm mt-3" data-action="programme-change">${icon("graduation")} Schimbă clasa sau profilul</button>` : `
         <p class="subtitle">Nu ți-ai ales încă programa. Cu ea, materiile se completează singure din planul-cadru al clasei tale.</p>
         <button type="button" class="btn btn-primary btn-sm mt-3" data-action="programme-change">${icon("graduation")} Alege profilul și clasa</button>`;
@@ -5373,7 +5373,7 @@ function programmeRows(profile, cls, variantId, lm2 = LM2_CHOICES[0]) {
         return { name, ore, hint: opt.hint || "", kind: "subject", off: Boolean(opt.off) };
     });
     if (!rows.some(r => r.kind === "dirig")) rows.push({ name: DIRIG, ore: 1, hint: cls >= 9 ? "ora de dirigenție (de obicei fără note, nu intră în medie)" : "ora de dirigenție", kind: "dirig", off: false });
-    rows.push({ name: OPT, ore: 1, hint: "ora la decizia școlii: scrie ce opțional faci", kind: "opt", off: true });
+    rows.push({ name: OPT, ore: 1, hint: "maximum un opțional: scrie ce faci la ora la decizia școlii", kind: "opt", off: true });
     return rows;
 }
 
@@ -5401,8 +5401,10 @@ function programmeLabel() {
     return [p.label, variant && variant.id !== p.variants[0].id ? variant.label : "", p.classes ? `clasa a ${ROMAN[sc.cls]}-a` : ""].filter(Boolean).join(" · ");
 }
 /** O materie e în programă? Fără programă aleasă nu judecăm (nu marcăm nimic). */
+const firstOptional = () => Object.keys(state.subjects).find(isOptionalName) || null;
 function inProgramme(name) {
-    if (!myProgramme() || isOptionalName(name)) return true;
+    if (isOptionalName(name)) return !myProgramme() || firstOptional() === name; // maximum un opțional: al doilea iese din programă
+    if (!myProgramme()) return true;
     const low = String(name).toLocaleLowerCase("ro");
     return myProgrammeRows().some(r => r.name.toLocaleLowerCase("ro") === low)
         || DIRIG_ALIASES.some(a => a.toLocaleLowerCase("ro") === low);
@@ -5659,6 +5661,7 @@ function finishSetup(withTimetable) {
     st.rows.forEach(r => {
         const name = (r.kind === "opt" ? optionalName(r.topic) : r.name).trim().replace(/\s+/g, " ");
         if (!r.on || r.exists || !name || findSubjectName(name)) return;
+        if (r.kind === "opt" && firstOptional()) return; // maximum un opțional
         // dirigenția din liceu nu are note: nu trage media în jos
         state.subjects[name] = { ore: r.ore, target: st.target, grades: [], priority: false, excludeFromGPA: r.kind === "dirig" && st.cls >= 9 };
         added.push(name);
@@ -8055,7 +8058,7 @@ function promptAddMaterie() {
             <div class="form-group">
                 <label for="subj-pick">Materia</label>
                 <select id="subj-pick" class="glass-select">
-                    ${missing.map(r => `<option value="${escapeHTML(r.kind === "opt" ? "__opt" : r.name)}" data-ore="${r.ore}">${escapeHTML(r.kind === "opt" ? `${OPT} (scrii tu tema)` : r.name)}</option>`).join("")}
+                    ${missing.map(r => `<option value="${escapeHTML(r.kind === "opt" ? "__opt" : r.name)}" data-ore="${r.ore}">${escapeHTML(r.kind === "opt" ? `${OPT} (maximum unul; scrii tu tema)` : r.name)}</option>`).join("")}
                 </select>
             </div>
             <div class="form-group" id="subj-opt-group" ${first.kind === "opt" ? "" : "hidden"}>
@@ -8068,7 +8071,11 @@ function promptAddMaterie() {
             const row = missing.find(r => (r.kind === "opt" ? "__opt" : r.name) === pick);
             if (!row) return;
             const name = row.kind === "opt" ? optionalName(field("subj-opt")) : row.name;
-            if (findSubjectName(name) || (row.kind === "opt" && Object.keys(state.subjects).some(isOptionalName))) {
+            if (row.kind === "opt" && firstOptional()) {
+                showToast(`⚠️ Poți avea un singur opțional (${firstOptional()}).`);
+                return;
+            }
+            if (findSubjectName(name)) {
                 showToast(`⚠️ ${name} e deja în catalog.`);
                 return;
             }
