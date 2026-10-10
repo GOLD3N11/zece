@@ -2635,6 +2635,91 @@ function bindCatalogNav() {
     }, { passive: true });
 }
 
+/* ---------- foile de jos: trage în jos ca să închizi (ca pe iPhone) ---------- */
+function bindSheetDrag() {
+    const SHEETS = [
+        { root: "action-modal", card: ".modal-card", scroller: "#action-modal-body", close: () => closeActionModal(), allowed: () => !cloud.asking,
+          fade: (el, p) => { el.style.backgroundColor = p === null ? "" : `rgba(15, 23, 42, ${(0.3 * (1 - p)).toFixed(3)})`; } },
+        { root: "quick-add", card: ".quick-add-card", close: () => closeQuickAdd(),
+          fade: (el, p) => { const b = el.querySelector(".quick-add-backdrop"); if (b) b.style.opacity = p === null ? "" : String(1 - p); } },
+        { root: "more-menu", card: ".quick-add-card", close: () => closeMoreMenu(),
+          fade: (el, p) => { const b = el.querySelector(".quick-add-backdrop"); if (b) b.style.opacity = p === null ? "" : String(1 - p); } }
+    ];
+    let drag = null;
+    const reset = d => {
+        d.card.style.transition = "";
+        d.card.style.transform = "";
+        d.sheet.fade(d.root, null);
+    };
+    document.addEventListener("touchstart", event => {
+        if (event.touches.length !== 1) return;
+        const t = event.touches[0];
+        for (const sheet of SHEETS) {
+            const root = $(sheet.root);
+            const card = root && !root.hidden ? root.querySelector(sheet.card) : null;
+            if (!card || !card.contains(event.target)) continue;
+            const r = card.getBoundingClientRect();
+            // doar când e foaie lipită de marginea de jos (pe ecrane mari e fereastră în mijloc)
+            if (r.bottom < innerHeight - 4 || r.width < innerWidth - 4) return;
+            // se poate trage de oriunde (și de pe un câmp: o atingere care alunecă nu-l deschide), mai puțin din ce se derulează singur
+            if (event.target.closest("textarea, input[type='range'], [contenteditable='true'], .cal-lessons, .cat-strip")) return;
+            const scroller = sheet.scroller ? root.querySelector(sheet.scroller) : null;
+            const inScroller = scroller?.contains(event.target);
+            drag = { sheet, root, card, scroller, inScroller, y: t.clientY, x: t.clientX, t: Date.now(), dy: 0, active: false, h: r.height };
+            return;
+        }
+    }, { passive: true });
+    document.addEventListener("touchmove", event => {
+        if (!drag) return;
+        const t = event.touches[0];
+        const dy = t.clientY - drag.y;
+        const dx = t.clientX - drag.x;
+        if (!drag.active) {
+            if (Math.abs(dx) > Math.abs(dy) || dy < -4) { drag = null; return; } // derulare sau gest lateral
+            if (dy < 8) return;
+            // din conținut se trage doar când e derulat complet sus; altfel e derulare obișnuită
+            if (drag.inScroller && drag.scroller.scrollTop > 0) { drag = null; return; }
+            drag.active = true;
+            drag.y = t.clientY;
+            drag.lastY = t.clientY;
+            drag.lastT = Date.now();
+            drag.v = 0;
+            document.activeElement?.blur?.(); // tastatura coboară odată cu foaia
+        }
+        event.preventDefault();
+        drag.dy = Math.max(0, t.clientY - drag.y);
+        // viteza din ultimele mișcări: o „aruncare” scurtă și rapidă închide foaia
+        const now = Date.now();
+        const dt = Math.max(1, now - drag.lastT);
+        drag.v = 0.6 * ((t.clientY - drag.lastY) / dt) + 0.4 * drag.v;
+        drag.lastY = t.clientY;
+        drag.lastT = now;
+        drag.card.style.transition = "none";
+        drag.card.style.transform = `translateY(${drag.dy}px)`;
+        drag.sheet.fade(drag.root, Math.min(1, drag.dy / drag.h));
+    }, { passive: false });
+    const end = () => {
+        const d = drag;
+        drag = null;
+        if (!d?.active) return;
+        const speed = Date.now() - d.lastT < 120 ? d.v : 0; // dacă degetul s-a oprit înainte să-l ridici, nu e aruncare
+        const allowed = d.sheet.allowed ? d.sheet.allowed() : true;
+        if (allowed && (d.dy > Math.min(140, d.h * 0.3) || (speed > 0.55 && d.dy > 30))) {
+            d.card.style.transition = "transform 0.2s cubic-bezier(.3, .6, .4, 1)";
+            d.card.style.transform = `translateY(${d.h + 24}px)`;
+            d.sheet.fade(d.root, 1);
+            setTimeout(() => { d.sheet.close(); reset(d); }, 200);
+        } else {
+            d.card.style.transition = "transform 0.28s cubic-bezier(.2, 1.3, .4, 1)";
+            d.card.style.transform = "";
+            d.sheet.fade(d.root, null);
+            setTimeout(() => { if (!drag) d.card.style.transition = ""; }, 300);
+        }
+    };
+    document.addEventListener("touchend", end);
+    document.addEventListener("touchcancel", end);
+}
+
 /* ---------- telefon (mai ales iPhone) ---------- */
 function bindPhoneHelpers() {
     const root = document.documentElement;
@@ -9929,6 +10014,7 @@ function init() {
     bindCatMenu();
     bindCatalogNav();
     bindPhoneHelpers();
+    bindSheetDrag();
     bindIsland();
     initBuddyLook();
     initCloud();

@@ -3845,7 +3845,7 @@ body.is-standalone .app-bar, body.is-standalone .mobile-bottom-nav { -webkit-use
 .island[hidden] { display: none; }
 .island-pill {
     display: inline-flex; align-items: center; gap: 6px;
-    height: 36px; max-width: 104px; padding: 0 12px 0 6px;
+    height: 36px; max-width: 136px; padding: 0 12px 0 6px;
     background: #000; color: inherit; border: 0; border-radius: 18px;
     box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.45);
     font: inherit; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
@@ -3927,3 +3927,7 @@ body.has-island .topbar-brand { min-width: 0; }
 
 /* Comutatorul ascuns care dă vibrația scurtă pe iPhone */
 .island-haptic { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+
+/* Mânerul foilor de jos: se vede mai clar, fiindcă foaia chiar se poate trage în jos ca să o închizi */
+@media (max-width: 600px) { .modal-overlay .modal-card::before { width: 44px; height: 5px; background: color-mix(in srgb, var(--text-secondary) 55%, transparent); } }
+@media (max-width: 900px) { .quick-add-card::before { width: 44px; height: 5px; background: color-mix(in srgb, var(--text-secondary) 55%, transparent); } }
