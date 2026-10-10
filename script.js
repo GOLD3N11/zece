@@ -6941,8 +6941,12 @@ function optionsHTML(values, selected) {
 /* ==================== NOTE ==================== */
 /** Formular comun pentru adăugarea și editarea unei note. */
 function gradeFormHTML({ val = 10, type = "Test", date = getLocalDateKey() } = {}, subjectField = "") {
+    const v = Number(val);
     return `
         ${subjectField}
+        <div class="grade-pick" role="group" aria-label="Alege nota">
+            ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<button type="button" class="grade-pick-btn tone-${gradeTone(n)}" data-action="grade-pick" data-val="${n}" aria-pressed="${n === v}">${n}</button>`).join("")}
+        </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="modal-grade-val">Nota (1-10)</label>
@@ -6955,7 +6959,11 @@ function gradeFormHTML({ val = 10, type = "Test", date = getLocalDateKey() } = {
         </div>
         <div class="form-group">
             <label for="modal-grade-date">Data</label>
-            <input type="date" id="modal-grade-date" class="glass-input" value="${escapeHTML(date || "")}" max="${getLocalDateKey()}">
+            <div class="grade-date-row">
+                <input type="date" id="modal-grade-date" class="glass-input" value="${escapeHTML(date || "")}" max="${getLocalDateKey()}">
+                <button type="button" class="btn btn-glass btn-sm" data-action="grade-date" data-days="0">Azi</button>
+                <button type="button" class="btn btn-glass btn-sm" data-action="grade-date" data-days="1">Ieri</button>
+            </div>
         </div>`;
 }
 
@@ -7841,18 +7849,21 @@ function markAllAlertsRead() {
 }
 
 /* ==================== SETĂRI ==================== */
-function saveSettings() {
+function saveSettings({ quiet = false } = {}) {
     const s = state.settings;
+    let moduleError = "";
 
     // Modulele se verifică primele: cu date greșite nu salvăm nimic, ca utilizatorul să le poată corecta.
+    // La salvarea automată (în timp ce scrii) salvăm restul și doar arătăm discret ce nu e în regulă la module.
     if ($("set-modules")) {
         const modules = readModulesFromSettings();
         const error = validateModules(modules);
-        if (error) {
+        if (error && !quiet) {
             showToast(`⚠️ ${error}`);
             return;
         }
-        s.modules = modules;
+        if (error) moduleError = error;
+        else s.modules = modules;
     }
 
     s.goals.primary = ["gpa", "tens", "evals"].includes(field("set-primary-goal")) ? field("set-primary-goal") : "gpa";
@@ -7873,8 +7884,29 @@ function saveSettings() {
 
     applyAppearanceSettings();
     refresh();
+    if (quiet) {
+        // arată valorile corectate (ex. 12 → 10) fără să redeseneze modulele pe care le editezi
+        for (const [id, [group, key]] of Object.entries(SETTINGS_FIELDS)) {
+            const el = $(id);
+            if (el && el !== document.activeElement) el.value = state.settings[group][key];
+        }
+        renderBuddyPreview();
+        flashSettingsStatus(moduleError ? `⚠ ${moduleError}` : "✓ Salvat", Boolean(moduleError));
+        return;
+    }
     loadSettingsIntoUI(); // arată valorile corectate (ex. 12 → 10)
     showToast("⚙️ Setările au fost salvate.");
+}
+
+/** Mesajul discret de lângă titlul Setărilor („✓ Salvat”), pentru salvarea automată. */
+function flashSettingsStatus(text, warn = false) {
+    const el = $("settings-status");
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle("is-warn", warn);
+    el.classList.add("is-on");
+    clearTimeout(flashSettingsStatus.timer);
+    if (!warn) flashSettingsStatus.timer = setTimeout(() => el.classList.remove("is-on"), 1800);
 }
 
 function resetSettings() {
@@ -9097,7 +9129,11 @@ function projectionSummaryHTML(projected) {
 
 function generalPanelHTML(scenario, projected) {
     const method = state.settings.calc.method === "weighted" ? "ponderată după numărul de ore" : "media aritmetică a materiilor";
-    const rows = Object.keys(state.subjects).map(mat => {
+    const all = Object.keys(state.subjects);
+    // Implicit doar materiile care se schimbă (sau au note ipotetice) — restul tabelului ar fi doar repetiție.
+    const changed = all.filter(mat => (scenario.hypo[mat] || []).length > 0 || metrics.subjects[mat].exactAvg !== projected.subjects[mat].exactAvg);
+    const shown = ui.simAll ? all : changed;
+    const rows = shown.map(mat => {
         const a = metrics.subjects[mat];
         const b = projected.subjects[mat];
         const touched = (scenario.hypo[mat] || []).length > 0;
@@ -9117,18 +9153,33 @@ function generalPanelHTML(scenario, projected) {
 
     return `
         <section class="glass-card sim-panel sim-wide" aria-labelledby="sim-general-title">
-            <h3 id="sim-general-title">${icon("chart")} Proiecția pe materii</h3>
+            <div class="sim-panel-head">
+                <h3 id="sim-general-title">${icon("chart")} Proiecția pe materii</h3>
+                <button type="button" class="btn btn-text btn-sm" data-action="sim-toggle-all" aria-pressed="${Boolean(ui.simAll)}">${ui.simAll ? "Doar cele schimbate" : `Toate materiile (${all.length})`}</button>
+            </div>
+            ${shown.length ? `
             <div class="table-scroll">
                 <table class="sim-table">
                     <thead><tr><th scope="col">Materie</th><th scope="col">Acum</th><th scope="col">Proiectat</th><th scope="col">Diferență</th><th scope="col"><span class="sr-only">Schimbare de status</span></th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
-            </div>
+            </div>` : `<p class="sim-empty-line">Nimic schimbat încă. Apasă o notă ipotetică mai sus și aici apar materiile afectate.</p>`}
             <p class="subtitle mt-3">Calculată ca ${method}, la fel ca în restul aplicației. Apasă pe o materie ca s-o simulezi.</p>
         </section>`;
 }
 
 function comparePanelHTML() {
+    // Cu un singur scenariu nu ai ce compara: doar o invitație scurtă, nu un tabel care repetă proiecția.
+    if (sim.scenarios.length < 2) {
+        return `
+        <section class="glass-card sim-panel sim-wide sim-compare-invite" aria-labelledby="sim-compare-title">
+            <div class="sim-panel-head">
+                <h3 id="sim-compare-title">${icon("scale")} Compară scenariile</h3>
+                <button type="button" class="btn btn-glass btn-sm" data-action="sim-new">${icon("plus")} Scenariu nou</button>
+            </div>
+            <p class="muted-small">Fă încă un scenariu (de ex. „dacă teza merge prost”) și le vezi aici unul lângă altul.</p>
+        </section>`;
+    }
     const columns = [
         { id: null, name: "Real", m: metrics, count: 0 },
         ...sim.scenarios.map(sc => ({ id: sc.id, name: sc.name, m: projectMetrics(sc), count: hypoCount(sc) }))
@@ -9137,7 +9188,9 @@ function comparePanelHTML() {
     const cell = (col, value, changed, extra = "") =>
         `<td class="${col.id === sim.active ? "active-col" : ""} ${changed ? "changed" : ""} ${extra}">${value}</td>`;
 
-    const subjectRows = Object.keys(state.subjects).map(mat => `
+    const subjectRows = Object.keys(state.subjects)
+        .filter(mat => columns.some(c => c.id && c.m.subjects[mat].exactAvg !== metrics.subjects[mat].exactAvg))
+        .map(mat => `
         <tr>
             <th scope="row">${escapeHTML(mat)}</th>
             ${columns.map(c => cell(c, fmtAvg(c.m.subjects[mat]), c.id && c.m.subjects[mat].exactAvg !== metrics.subjects[mat].exactAvg)).join("")}
@@ -9146,7 +9199,6 @@ function comparePanelHTML() {
     return `
         <section class="glass-card sim-panel sim-wide" aria-labelledby="sim-compare-title">
             <h3 id="sim-compare-title">${icon("scale")} Compară scenariile</h3>
-            ${sim.scenarios.length < 2 ? `<p class="muted-small mt-2">Creează încă un scenariu (de ex. „dacă teza merge prost”) ca să le vezi unul lângă altul.</p>` : ""}
             <div class="table-scroll mt-3">
                 <table class="sim-table sim-compare">
                     <thead>
@@ -9254,6 +9306,11 @@ const SIM_ACTIONS = {
     "sim-scenario": el => {
         sim.active = el.dataset.id;
         commitSim();
+    },
+    "sim-toggle-all": () => {
+        ui.simAll = !ui.simAll;
+        renderSimulator();
+        document.querySelector('[data-action="sim-toggle-all"]')?.focus();
     },
     "sim-new": () => {
         if (sim.scenarios.length >= SIM_LIMITS.scenarios) return;
@@ -9369,6 +9426,16 @@ const ACTIONS = {
         rerenderTimetableEditor(el.dataset.day);
     },
     "cat-select": el => selectCatalogSubject(el.dataset.mat),
+    "grade-pick": el => {
+        const input = $("modal-grade-val");
+        if (!input) return;
+        input.value = el.dataset.val;
+        document.querySelectorAll(".grade-pick-btn").forEach(b => b.setAttribute("aria-pressed", String(b === el)));
+    },
+    "grade-date": el => {
+        const input = $("modal-grade-date");
+        if (input) input.value = addDays(getLocalDateKey(), -Number(el.dataset.days || 0));
+    },
     "cat-step": el => stepCatalog(Number(el.dataset.dir) === -1 ? -1 : 1),
     "cat-group": el => {
         const key = el.dataset.group;
@@ -9472,6 +9539,16 @@ function bindEvents() {
     });
     document.addEventListener("input", event => {
         if (event.target.id === "set-name" || event.target.id === "set-buddy") renderBuddyPreview();
+        if (event.target.id === "modal-grade-val") {
+            document.querySelectorAll(".grade-pick-btn").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.val === event.target.value.trim())));
+        }
+    });
+    // Setările se salvează singure, imediat ce schimbi ceva (nu mai trebuie apăsat „Salvează”).
+    document.addEventListener("change", event => {
+        const el = event.target;
+        if (!el.closest?.("#tab-setari") || !el.matches("input, select") || el.type === "file") return;
+        if (!(el.id in SETTINGS_FIELDS) && !el.closest("#set-modules") && el.id !== "set-module-preset") return;
+        saveSettings({ quiet: true });
     });
 
     document.addEventListener("keydown", event => {

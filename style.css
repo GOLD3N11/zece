@@ -3704,3 +3704,39 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
     .cat-sum small { display: none; }
     .cat-strip { position: relative; }
 }
+
+/* ==================== UX: RETUȘURI ==================== */
+/* Notă: butoane 1–10 (mai rapid decât să scrii) */
+.grade-pick { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; margin-bottom: 14px; }
+.grade-pick-btn {
+    min-height: 42px; padding: 0; border: 1px solid var(--rule); border-radius: 9px; background: var(--input-bg);
+    font-family: var(--font-hand); font-size: 17px; font-weight: 750; color: var(--ink); cursor: pointer;
+    transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+.grade-pick-btn:hover { border-color: color-mix(in srgb, var(--accent-color) 45%, var(--rule)); }
+.grade-pick-btn:active { transform: scale(0.94); }
+.grade-pick-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+.grade-pick-btn[aria-pressed="true"] { background: var(--accent-color); border-color: var(--accent-color); color: var(--on-accent); }
+.grade-pick-btn.tone-fail:not([aria-pressed="true"]) { color: var(--risk); }
+@media (max-width: 420px) { .grade-pick { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.grade-date-row { display: flex; gap: 6px; align-items: stretch; }
+.grade-date-row .glass-input { flex: 1; min-width: 0; }
+.grade-date-row .btn { flex: none; }
+
+/* Setări: salvarea automată, discret lângă titlu */
+.settings-status { margin-right: auto; font-size: 12.5px; font-weight: 600; color: var(--ink-2); opacity: 0.75; transition: opacity 0.2s ease, color 0.2s ease; }
+.settings-status.is-on { opacity: 1; color: var(--ok); }
+.settings-status.is-warn { color: var(--warn); }
+
+/* Simulator: antetul panourilor și starea „nimic schimbat” */
+.sim-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.sim-panel-head h3 { margin: 0; }
+.sim-empty-line { padding: 14px; border: 1px dashed var(--rule); border-radius: var(--radius-md); font-size: 13.5px; color: var(--ink-2); text-align: center; }
+.sim-compare-invite .muted-small { margin: 0; }
+
+/* Calendar pe telefon: zilele trecute ale săptămânii, strânse — azi ajunge mai repede la vedere */
+@media (max-width: 900px) {
+    .cal-col.is-past .cal-lessons { display: none; }
+    .cal-col.is-past.is-empty, .cal-col.is-past:not(:has(.cal-items > *)) { padding-top: 8px; padding-bottom: 8px; }
+    .cal-col.is-past .cal-add { display: none; }
+}
