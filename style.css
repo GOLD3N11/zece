@@ -3368,11 +3368,14 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
 .buddy-poke:hover .buddy { filter: drop-shadow(0 8px 14px rgba(36, 27, 68, 0.22)); }
 .buddy-poke.is-hit .buddy { animation: buddyHit 0.45s cubic-bezier(.3,1.5,.5,1) both; }
 @keyframes buddyHit {
-    0% { transform: translateX(0) scale(1, 1); }
-    25% { transform: translateX(var(--kick, 10px)) scale(1.14, 0.84) rotate(var(--kick-rot, 8deg)); }
-    60% { transform: translateX(calc(var(--kick, 10px) * -0.3)) scale(0.95, 1.06); }
-    100% { transform: translateX(0) scale(1, 1); }
+    0% { transform: scale(1); }
+    30% { transform: scale(0.84, 0.8); filter: brightness(0.94) drop-shadow(0 2px 3px rgba(36, 27, 68, 0.2)); }
+    65% { transform: scale(1.05, 1.06); }
+    100% { transform: scale(1); }
 }
+/* cât ții apăsat, rămâne „apăsat” */
+.buddy-poke .buddy { transform-origin: 50% 60%; }
+.buddy-poke:active .buddy { animation: none; transform: scale(0.88, 0.84); filter: brightness(0.94) drop-shadow(0 2px 3px rgba(36, 27, 68, 0.2)); transition: transform 0.06s ease-out; }
 .azi-buddy { position: relative; }
 @media (prefers-reduced-motion: reduce) {
     .buddy-eyes, .buddy-poke.is-hit .buddy { animation: none !important; }
@@ -3433,7 +3436,7 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
     [data-mood="giggle"] g:nth-last-child(2) > .b-spark { animation-delay: 0.12s; }
     [data-mood="giggle"] g:last-child > .b-spark { animation-delay: 0.24s; }
     /* surprins: sare în sus, ochii se măresc, gura „O” pulsează, liniuțe de șoc */
-    [data-mood="surprised"] .buddy-anim { animation: bJump 0.5s cubic-bezier(.3,1.6,.5,1) both; }
+    [data-mood="surprised"] .buddy-anim { animation: bPopIn 0.45s cubic-bezier(.3,1.6,.5,1) both; }
     [data-mood="surprised"] .b-eyes-pop { animation: bPop 0.45s cubic-bezier(.3,1.8,.5,1) both; }
     [data-mood="surprised"] .b-brows { animation: bBrowUp 0.45s ease-out both; }
     [data-mood="surprised"] .b-mouth { animation: bO 0.6s ease-in-out infinite alternate; }
@@ -3453,7 +3456,7 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
     [data-mood="dizzy"] .b-spiral { animation: bSpin 1s linear infinite; }
     [data-mood="dizzy"] .b-orbit { animation: bOrbit 2.4s linear infinite; }
     /* face pace: ochi-inimioare care bat, inimioare care urcă */
-    [data-mood="love"] .buddy-anim { animation: bJump 0.5s cubic-bezier(.3,1.6,.5,1) both; }
+    [data-mood="love"] .buddy-anim { animation: bPopIn 0.45s cubic-bezier(.3,1.6,.5,1) both; }
     [data-mood="love"] .b-heart-eye { animation: bBeat 0.7s ease-in-out infinite; }
     [data-mood="love"] .b-heart { animation: bFloat 1.6s ease-out infinite; }
     [data-mood="love"] .is-late .b-heart { animation-delay: 0.5s; }
@@ -3468,6 +3471,7 @@ body:not(.has-cloud) .cloud-only, body:not(.has-cloud) .account-chip { display: 
 @keyframes bLaugh { from { transform: scaleY(1); } to { transform: scaleY(0.55); } }
 @keyframes bSquint { from { transform: translateY(0); } to { transform: translateY(-1.5px) scaleY(0.75); } }
 @keyframes bSpark { 0% { transform: scale(0) rotate(0); opacity: 0; } 40% { transform: scale(1.3) rotate(45deg); opacity: 1; } 100% { transform: scale(0.8) rotate(90deg); opacity: 0; } }
+@keyframes bPopIn { 0% { transform: scale(0.94); } 50% { transform: scale(1.06); } 100% { transform: scale(1); } }
 @keyframes bJump { 0% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-12px) scale(0.92, 1.1); } 65% { transform: translateY(0) scale(1.08, 0.92); } 100% { transform: translateY(0) scale(1, 1); } }
 @keyframes bPop { 0% { transform: scale(0.7); } 60% { transform: scale(1.35); } 100% { transform: scale(1.15); } }
 @keyframes bBrowUp { 0% { transform: translateY(3px); } 100% { transform: translateY(-3px); } }

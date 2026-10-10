@@ -1429,11 +1429,7 @@ function pokeBuddy(btn, event) {
     buddyPoke.last = now;
     btn.innerHTML = buddySVG(BUDDY_POKES[buddyPoke.n - 1]);
 
-    // Lovitura: se turtește și sare în partea opusă clicului.
-    const rect = btn.getBoundingClientRect();
-    const fromLeft = (event?.clientX ?? rect.left) < rect.left + rect.width / 2;
-    btn.style.setProperty("--kick", `${fromLeft ? 10 : -10}px`);
-    btn.style.setProperty("--kick-rot", `${fromLeft ? 8 : -8}deg`);
+    // Apăsat ca un buton: se turtește pe loc, apoi revine (nu fuge în nicio direcție).
     btn.classList.remove("is-hit");
     void btn.offsetWidth; // repornește animația
     btn.classList.add("is-hit");
